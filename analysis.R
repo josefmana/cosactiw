@@ -2,8 +2,7 @@
 #
 # RQ1) Is there a bigger probability that a woman is SA given she was physically active during middle age?
 # RQ2) How does the probability of SA differ between education levels conditional on physical activity?
-# RQ3) What's more important for being SA, education or midlife physical activity?
-# RQ4) Is there a bigger probability of being physically active in old age if one was active in middle age?
+#
 
 rm( list = ls() ) # clean environment
 
@@ -12,199 +11,36 @@ library(here)
 library(tidyverse)
 library(openxlsx)
 library(MatchIt)
-library(marginaleffects)
-library(emmeans)
-library(performance)
+library(cobalt)
 library(patchwork)
+library(marginaleffects)
+library(performance)
+
+theme_set( theme_bw(base_size = 12) ) # set theme for plotting
+estimand <- "ATC" # set-up estimand (ATC, ATT, or ATE)
+
+# set-up folder for results
+sapply( c("figures","tables"), function(i) if( !dir.exists(i) ) dir.create(i) )
 
 
-# IN-HOUSE FUNCTION ----
+# UTILS ----
 
-# propensity scores with g-computation for the "marginaleffects solution"
-marginal_effects <- function(
-    
-  data = d,
-  estimand = "ATE",
-  y = "SA",
-  x = "Cosactiw",
-  control = 0,
-  exposure = 1,
-  save = F,
-  likelihood = "quasibinomial",
-  trans = function(x) exp(x)
-  
-    ) {
-  
-  ## propensity scores matching ----
-
-  # model it
-  m.out <- matchit(
-    formula = as.formula( paste0(x," ~ Age + Education") ),
-    data = data,
-    method = "full",
-    distance = "glm",
-    estimand = estimand
-  )
-  
-  # check-it
-  plot(m.out, type = "density", interactive = F)
-  
-  dia <- summary(m.out)
-  print("Matching diagnostics")
-  print(dia)
-  
-  # prepare matched data
-  m.data <- match.data(m.out)
-  
-  
-  ## regression analysis ----
-  fit <- glm(
-    formula = formula( paste0(y," ~ 1 + ",x," * (Age + Education)") ),
-    data = m.data,
-    weights = weights,
-    family = likelihood
-  )
-  
-  ## g-computation ----
-  
-  # prepare dat for calculation of the effect
-  if (estimand == "ATE") d_seq <- m.data
-  else if (estimand == "ATT") d_seq <- subset(m.data, get(x) == exposure)
-  else if (estimand == "ATC") d_seq <- subset(m.data, get(x) == control)
-  
-  # prepare comparison and transform functions
-  comp <- case_when(likelihood == "quasibinomial" ~ "lnratioavg", likelihood == "gaussian" ~ "difference")
-  
-  # average effect
-  avg_comp <- avg_comparisons(
-    model = fit,
-    newdata = d_seq,
-    variables = x,
-    vcov = ~subclass,
-    wts = "weights",
-    comparison = comp,
-    transform = trans
-  )
-  
-  # conditional average 
-  cond_comp <- avg_comparisons(
-    model = fit,
-    newdata = d_seq,
-    variables = x,
-    by = "Education",
-    vcov = ~subclass,
-    wts = "weights",
-    comparison = comp,
-    transform = trans
-  )
-  
-  # interaction with education
-  inter <- avg_comparisons(
-    model = fit,
-    newdata = d_seq,
-    variables = x,
-    by = "Education",
-    hypothesis = "revpairwise",
-    vcov = ~subclass,
-    wts = "weights",
-    comparison = comp,
-    transform = trans
-  )
-  
-  # plot interaction with education
-  plt_edu <- plot_predictions(
-    model = fit,
-    condition = c("Education", x),
-    points = 1,
-    newdata = d_seq,
-    vcov = ~subclass
-  )
-  
-  # plot interaction with age
-  plt_age <- plot_predictions(
-    model = fit,
-    condition = c("Age", x),
-    points = 1,
-    newdata = d_seq,
-    vcov = ~subclass
-  )
-  
-  # print results
-  Sys.sleep(3)
-  print( paste0("Average Effect (",estimand,")") )
-  print(avg_comp)
-  print("Average Effect per Education Level")
-  print(cond_comp)
-  print("Interaction with Education")
-  print(inter)
-  print( (plt_edu / plt_age) + plot_layout(guides = "collect") )
-  
-  # save if called for
-  if ( isTRUE(save) ) return(
-    list(
-      x_model = m.out, # model for exposure
-      y_model = fit, # model for outcome
-      prop_dia = dia, # diagnosis of propensity scores matching (== summary(x_model) )
-      data = m.data, # data including weights
-      estimand = estimand, # type of effect
-      average_comp = avg_comp, # ATT/ATC/ATE
-      stratified_comp = cond_comp, # effect stratified by education
-      interaction = inter # exposure * education interaction
-    )
-  )
-  
-}
-
-# simple regressions and estimated marginal means for the "emmeans solution"
-marginal_means <- function(data = d, y = "SA", x = "Cosactiw", save = F, likelihood = "binomial", age = F) {
-
-  # fit the model
-  fit <- glm(
-    formula = formula( paste0(y," ~ 1 + ",x," * (Age + Education)") ),
-    data = data,
-    family = likelihood
-  )
-
-  # extract the emmeans
-  emm0 <- emmeans(object = fit, specs = formula( paste0("revpairwise ~ ",x) ), type = "response") # averaged over
-  emm1 <- emmeans(object = fit, specs = formula( paste0("revpairwise ~ ",x) ), type = "response", by = "Education") # stratified by education levels
-  inter <- contrast( emmeans(object = fit, specs = formula( paste0("revpairwise ~ ",x," * Education") ), type = "response"), interaction = "consec")
-  ageint <- emtrends(fit, formula( paste0("revpairwise ~ ",x) ), type = "response", var = "Age")
-  
-  # print it
-  print("Non-stratified estimated marginal means")
-  print(emm0)
-  print("Estimated marginal means stratified by education level")
-  print(emm1)
-  print( paste0(x," * education interaction") )
-  print(inter)
-  if (age == T) {
-    print( paste0(x," * age interaction") )
-    print(ageint)
-  }
-  
-  # save if called for
-  if ( isTRUE(save) ) return(
-    list(
-      model = fit, # model for outcome
-      average_emmean = emm0, # non-stratified emmean
-      stratified_emmean = cond_comp, # stratified emmean
-      interaction = inter # exposure * education interaction
-    )
-  ) 
-    
-}
+rprint <- function(x, d=2) sprintf( paste0("%.",d,"f"), round(x, d) )
+zerolead <- function(x, d = 3) ifelse( x < .001, "< .001", sub("0","", rprint(x, d) ) )
 
 
 # PREPARE DATA ----
+d0 <-
 
-d <-
   read.xlsx(here("_raw","COSACTIW_NANOK_for-Eef.xlsx"), sheet = "data") %>%
   select(
     1, Study, Age, `Education-2-cat`, `Regular-PA`, Type_of_prevailing_occupation_during_life, # predictors
     `SA_New-BNT`, GDS15, GAI, FAQ # outcomes
   ) %>%
   mutate(
+    Age_centr = as.numeric(
+      scale(Age, center = T, scale = F)
+    ),
     Study = factor(
       x = Study,
       levels = c("COSACTIW","NANOK")
@@ -242,32 +78,297 @@ d <-
         Type_of_prevailing_occupation_during_life == 3 ~ "mostly mental",
         Type_of_prevailing_occupation_during_life == 4 ~ "mental"
       ),
+    ),
+    across(
+      .cols = c("FAQ","GDS15","GAI"),
+      .fns = ~ log(.x+1),
+      .names = "log{col}"
     )
   ) %>%
-  select(ID, Study, Cosactiw, Age, Education, SA, PA, Profession, GDS15, GAI, FAQ)
+  select(ID, Study, Cosactiw, Age, Age_centr, Education, SA, PA, Profession, GDS15, GAI, FAQ, logGDS15, logGAI, logFAQ)
 
 
-# MARGINAL EFFECTS SOLUTION ----
+# PROPENSITY SCORES MATCHING ----
 
-# via the MatchIt and marginaleffects packages
-marginal_effects(estimand = "ATC", y = "SA", x = "Cosactiw", save = F) # effect of midlife PA on SA
-marginal_effects(estimand = "ATC", y = "FAQ", x = "Cosactiw", save = F, likelihood = "gaussian")
-marginal_effects(estimand = "ATC", y = "GAI", x = "Cosactiw", save = F, likelihood = "gaussian")
-marginal_effects(estimand = "ATC", y = "GDS15", x = "Cosactiw", save = F, likelihood = "gaussian")
+# fit a logistic regression for Cosactiw variable with full matching via logistic regression
+fit0 <- matchit(
+  formula = Cosactiw ~ Age + Education,
+  data = d0,
+  method = "full",
+  distance = "glm",
+  estimand = estimand
+)
 
-#marginal_effects(estimand = "ATC", y = "SA", x = "PA", save = F) # effect of actual PA on SA
-#marginal_effects(estimand = "ATC", y = "PA", x = "Cosactiw", save = F) # effect of midlife PA on actual PA
+# graphical check
+fig0 <- lapply(
+  
+  set_names( x = c("Age","Education") ),
+  function(x) bal.plot(
+    
+    fit0,
+    var.name = x,
+    which = "both",
+    colors = c("navyblue","orange"),
+    position = if_else(x == "Age", "none", "bottom"),
+    sample.names = c("Non-weighted","Propensity score-weighted")
+    
+  ) +
+    
+    theme( plot.title = element_text(hjust = .5, face = "bold") ) +
+    labs( fill = "COSACTIW: " )
+  
+)
+
+# prepare a figure and save it
+(fig0$Age / fig0$Education)
+ggsave(plot = last_plot(), filename = here("figures","propensity_scores_check.jpg"), dpi = 300, width = 9, height = 9)
+
+# extract propensity score-weighted data set
+d1 <- match.data(fit0)
 
 
-# MARGINAL MEANS SOLUTION ----
+# STATISTICAL MODELLING ----
 
-# via the emmeans package
-marginal_means(y = "SA", x = "Cosactiw", save = F) # emmeans of P(SA | midlife PA)
-#marginal_means(y = "SA", x = "PA", save = F) # emmeans of P(SA | actual PA)
-#marginal_means(y = "PA", x = "Cosactiw", save = F) # emmeans of P(actual PA | midlife PA)
+# fit a set of weighted regressions, one for each outcome of interest
+fit1 <- lapply(
+  
+  set_names( c("SA","GDS15","GAI","FAQ","logGDS15","logGAI","logFAQ") ),
+  function(y) glm(
+    
+    formula = as.formula( paste0(y," ~ Study * (Age_centr + Education)") ),
+    data = d1,
+    weights = weights,
+    family = if_else(y == "SA", "quasibinomial", "gaussian")
+    
+  )
+)
 
-marginal_means(y = "FAQ", x = "Cosactiw", save = F, likelihood = "gaussian", age = T) # emmeans of E(FAQ | midlife PA)
-marginal_means(y = "GDS15", x = "Cosactiw", save = F, likelihood = "gaussian", age = T) # emmeans of E(GDS15 | midlife PA)
-marginal_means(y = "GAI", x = "Cosactiw", save = F, likelihood = "gaussian", age = T) # emmeans of E(GAI | midlife PA)
+# save model check plots
+lapply(
+  
+  names(fit1),
+  function(y) ggsave(
+    
+    plot = plot( check_model(fit1[[y]]) ),
+    filename = here( "figures", paste0("model_checks_",y,".jpg") ),
+    dpi = 300,
+    width = 10,
+    height = 12
+    
+  )
+)
+
+
+# EXTRACT RESULTS ----
+
+list(
+  
+  # SA
+  list(
+    
+    # proportion of SAs
+    avg_predictions(
+      fit1$SA,
+      variables = "Study",
+      wts = "weights"
+    ) %>%
+      as.data.frame() %>%
+      mutate(
+        across( starts_with("conf"), ~ rprint(100 * .x) ),
+        across( where(is.factor), as.character ),
+        estimate = paste0( rprint(100 * estimate),"%" ),
+        p.value = zerolead(p.value),
+        s.value = rprint(s.value)
+      ),
+    
+    # ATC
+    avg_comparisons(
+      model = fit1$SA,
+      newdata = subset(d1, Study == "NANOK"),
+      variables = list(Study = "revpairwise"),
+      vcov = ~subclass,
+      wts = "weights",
+      comparison = "lnratioavg",
+      transform = "exp"
+    ) %>%
+      as.data.frame() %>%
+      select( -contains("predicted") ) %>%
+      mutate(
+        across(starts_with("conf"), rprint),
+        across(all_of( c("estimate","s.value") ), rprint),
+        across( where(is.factor), as.character ),
+        p.value = zerolead(p.value),
+      ),
+    
+    # proportion of SAs given education level
+    avg_predictions(
+      fit1$SA,
+      variables = c("Study", "Education"),
+      wts = "weights"
+    ) %>%
+      as.data.frame() %>%
+      mutate(
+        across( starts_with("conf"), ~ rprint(100 * .x) ),
+        across( where(is.factor), as.character ),
+        estimate = paste0( rprint(100 * estimate),"%" ),
+        p.value = zerolead(p.value),
+        s.value = rprint(s.value)
+      ),
+    
+    # CATC
+    avg_comparisons(
+      model = fit1$SA,
+      newdata = subset(d1, Study == "NANOK"),
+      variables = list(Study = "revpairwise"),
+      by = "Education",
+      vcov = ~subclass,
+      wts = "weights",
+      comparison = "lnratioavg",
+      transform = "exp"
+    ) %>%
+      as.data.frame() %>%
+      select( -contains("predicted") ) %>%
+      mutate(
+        across(starts_with("conf"), rprint),
+        across(all_of( c("estimate","s.value") ), rprint),
+        across( where(is.factor), as.character ),
+        p.value = zerolead(p.value),
+      ),
+    
+    # interaction with education
+    avg_comparisons(
+      model = fit1$SA,
+      newdata = subset(d1, Study == "NANOK"),
+      variables = "Study",
+      by = "Education",
+      vcov = ~subclass,
+      wts = "weights",
+      hypothesis = "revpairwise",
+      comparison = "lnratioavg",
+      transform = "exp"
+    ) %>%
+      as.data.frame() %>%
+      rename("contrast" = "term") %>%
+      mutate(
+        across(starts_with("conf"), rprint),
+        across(all_of( c("estimate","s.value") ), rprint),
+        across( where(is.factor), as.character ),
+        p.value = zerolead(p.value),
+      )
+    
+  ) %>%
+    
+    reduce(full_join) %>%
+    mutate( confint = paste0("[",conf.low,", ",conf.high,"]") ) %>%
+    select(Study, Education, contrast, estimate, confint, p.value, s.value) %>%
+    mutate(y = "SA", .before = 1),
+  
+  # the rest
+  lapply(
+    
+    names(fit1)[-1],
+    function(y)
+      
+      list(
+        
+        # proportion of SAs
+        avg_predictions(
+          fit1[[y]],
+          variables = "Study",
+          wts = "weights"
+        ) %>%
+          as.data.frame() %>%
+          mutate(
+            across(starts_with("conf"), rprint),
+            across(where(is.factor), as.character),
+            estimate = rprint(estimate),
+            p.value = zerolead(p.value),
+            s.value = rprint(s.value)
+          ),
+        
+        # ATC
+        avg_comparisons(
+          model = fit1[[y]],
+          newdata = subset(d1, Study == "NANOK"),
+          variables = list(Study = "revpairwise"),
+          vcov = ~subclass,
+          wts = "weights"
+        ) %>%
+          as.data.frame() %>%
+          select( -contains("predicted") ) %>%
+          mutate(
+            across(starts_with("conf"), rprint),
+            across(all_of( c("estimate","s.value") ), rprint),
+            across( where(is.factor), as.character ),
+            p.value = zerolead(p.value),
+          ),
+        
+        # proportion of SAs given education level
+        avg_predictions(
+          fit1[[y]],
+          variables = c("Study", "Education"),
+          wts = "weights"
+        ) %>%
+          as.data.frame() %>%
+          mutate(
+            across(starts_with("conf"), rprint),
+            across(where(is.factor), as.character),
+            estimate = rprint(estimate),
+            p.value = zerolead(p.value),
+            s.value = rprint(s.value)
+          ),
+        
+        # CATC
+        avg_comparisons(
+          model = fit1[[y]],
+          newdata = subset(d1, Study == "NANOK"),
+          variables = list(Study = "revpairwise"),
+          by = "Education",
+          vcov = ~subclass,
+          wts = "weights"
+        ) %>%
+          as.data.frame() %>%
+          select( -contains("predicted") ) %>%
+          mutate(
+            across(starts_with("conf"), rprint),
+            across(all_of( c("estimate","s.value") ), rprint),
+            across( where(is.factor), as.character ),
+            p.value = zerolead(p.value),
+          ),
+        
+        # interaction with education
+        avg_comparisons(
+          model = fit1[[y]],
+          newdata = subset(d1, Study == "NANOK"),
+          variables = list(Study = "revpairwise"),
+          by = "Education",
+          hypothesis = "revpairwise",
+          vcov = ~subclass,
+          wts = "weights"
+        ) %>%
+          as.data.frame() %>%
+          rename("contrast" = "term") %>%
+          mutate(
+            across(starts_with("conf"), rprint),
+            across(all_of( c("estimate","s.value") ), rprint),
+            across( where(is.factor), as.character ),
+            p.value = zerolead(p.value),
+          )
+        
+      ) %>%
+      
+      reduce(full_join) %>%
+      mutate( confint = paste0("[",conf.low,", ",conf.high,"]") ) %>%
+      select(Study, Education, contrast, estimate, confint, p.value, s.value) %>%
+      mutate(y = y, .before = 1)
+    
+  ) %>%
+    
+    do.call( rbind.data.frame, . )
+  
+) %>%
+  
+  do.call( rbind.data.frame, . ) %>%
+  mutate( across( ends_with("value"), ~ if_else( is.na(contrast), NA, .x) ) )
 
 
