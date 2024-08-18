@@ -28,6 +28,47 @@ sapply( c("figures","tables"), function(i) if( !dir.exists(i) ) dir.create(i) )
 rprint <- function(x, d=2) sprintf( paste0("%.",d,"f"), round(x, d) )
 zerolead <- function(x, d = 3) ifelse( x < .001, "< .001", sub("0","", rprint(x, d) ) )
 
+# compute predictions
+preds <- function(mod, vars) avg_predictions(
+  mod,
+  variables = vars,
+  wts = "weights"
+) %>%
+  as.data.frame() %>%
+  mutate(
+    across( starts_with("conf"), ~ rprint(100 * .x) ),
+    across(where(is.factor), as.character),
+    across(ends_with("value"), ~ NA),
+    estimate = paste0( rprint(100 * estimate),"%" )
+  )
+
+# compute comparisons
+comps <- function(mod, nd, y, m, comp, trans = NULL, int = F) avg_comparisons(
+  model = mod,
+  newdata = nd,
+  variables = y,
+  by = m,
+  vcov = ~subclass,
+  wts = "weights",
+  comparison = comp,
+  transform = unlist( ifelse( is.null(trans), list(NULL), list(trans) ) ),
+  hypothesis = unlist( ifelse( int == T, list("revpairwise"), list(NULL) ) )
+) %>%
+  as.data.frame() %>%
+  mutate(
+    across(starts_with("conf"), rprint),
+    across(all_of( c("estimate","s.value") ), rprint),
+    across( where(is.factor), as.character ),
+    p.value = zerolead(p.value),
+  )
+
+# pull results from a list to single neat data frame
+tidyit <- function(x, y) reduce(x, full_join) %>%
+  mutate( confint = paste0("[",conf.low,", ",conf.high,"]") ) %>%
+  select(Study, Education, term, contrast, estimate, confint, p.value, s.value) %>%
+  mutate(y = y, .before = 1)
+
+
 
 # PREPARE DATA ----
 d0 <-
@@ -126,6 +167,15 @@ ggsave(plot = last_plot(), filename = here("figures","propensity_scores_check.jp
 # extract propensity score-weighted data set
 d1 <- match.data(fit0)
 
+# save it
+write.table(
+  x = d1,
+  file = here("_dataset.scv"),
+  sep = ",",
+  row.names = F,
+  quote = F
+)
+
 
 # STATISTICAL MODELLING ----
 
@@ -160,108 +210,18 @@ lapply(
 
 
 # EXTRACT RESULTS ----
-
 list(
   
   # SA
   list(
     
-    # proportion of SAs
-    avg_predictions(
-      fit1$SA,
-      variables = "Study",
-      wts = "weights"
-    ) %>%
-      as.data.frame() %>%
-      mutate(
-        across( starts_with("conf"), ~ rprint(100 * .x) ),
-        across( where(is.factor), as.character ),
-        estimate = paste0( rprint(100 * estimate),"%" ),
-        p.value = zerolead(p.value),
-        s.value = rprint(s.value)
-      ),
-    
-    # ATC
-    avg_comparisons(
-      model = fit1$SA,
-      newdata = subset(d1, Study == "NANOK"),
-      variables = list(Study = "revpairwise"),
-      vcov = ~subclass,
-      wts = "weights",
-      comparison = "lnratioavg",
-      transform = "exp"
-    ) %>%
-      as.data.frame() %>%
-      select( -contains("predicted") ) %>%
-      mutate(
-        across(starts_with("conf"), rprint),
-        across(all_of( c("estimate","s.value") ), rprint),
-        across( where(is.factor), as.character ),
-        p.value = zerolead(p.value),
-      ),
-    
-    # proportion of SAs given education level
-    avg_predictions(
-      fit1$SA,
-      variables = c("Study", "Education"),
-      wts = "weights"
-    ) %>%
-      as.data.frame() %>%
-      mutate(
-        across( starts_with("conf"), ~ rprint(100 * .x) ),
-        across( where(is.factor), as.character ),
-        estimate = paste0( rprint(100 * estimate),"%" ),
-        p.value = zerolead(p.value),
-        s.value = rprint(s.value)
-      ),
-    
-    # CATC
-    avg_comparisons(
-      model = fit1$SA,
-      newdata = subset(d1, Study == "NANOK"),
-      variables = list(Study = "revpairwise"),
-      by = "Education",
-      vcov = ~subclass,
-      wts = "weights",
-      comparison = "lnratioavg",
-      transform = "exp"
-    ) %>%
-      as.data.frame() %>%
-      select( -contains("predicted") ) %>%
-      mutate(
-        across(starts_with("conf"), rprint),
-        across(all_of( c("estimate","s.value") ), rprint),
-        across( where(is.factor), as.character ),
-        p.value = zerolead(p.value),
-      ),
-    
-    # interaction with education
-    avg_comparisons(
-      model = fit1$SA,
-      newdata = subset(d1, Study == "NANOK"),
-      variables = "Study",
-      by = "Education",
-      vcov = ~subclass,
-      wts = "weights",
-      hypothesis = "revpairwise",
-      comparison = "lnratioavg",
-      transform = "exp"
-    ) %>%
-      as.data.frame() %>%
-      rename("contrast" = "term") %>%
-      mutate(
-        across(starts_with("conf"), rprint),
-        across(all_of( c("estimate","s.value") ), rprint),
-        across( where(is.factor), as.character ),
-        p.value = zerolead(p.value),
-      )
-    
-  ) %>%
-    
-    reduce(full_join) %>%
-    mutate( confint = paste0("[",conf.low,", ",conf.high,"]") ) %>%
-    select(Study, Education, contrast, estimate, confint, p.value, s.value) %>%
-    mutate(y = "SA", .before = 1),
+    preds( fit1$SA, "Study" ), # proportion of SAs
+    comps( fit1$SA, subset(d1, Study == "NANOK"), list(Study = "revpairwise"), F, "lnratioavg", "exp"), # ATC
+    preds( fit1$SA, c("Study", "Education") ), # proportion of SAs given education level
+    comps( fit1$SA, subset(d1, Study == "NANOK"), list(Study = "revpairwise"), "Education", "lnratioavg", "exp"), # CATC
+    comps( fit1$SA, subset(d1, Study == "NANOK"), list(Study = "revpairwise"), "Education", "lnratioavg", "exp", int = T) # Study/Education interaction
+
+  ) %>% tidyit(y = "SA"),
   
   # the rest
   lapply(
@@ -271,96 +231,13 @@ list(
       
       list(
         
-        # proportion of SAs
-        avg_predictions(
-          fit1[[y]],
-          variables = "Study",
-          wts = "weights"
-        ) %>%
-          as.data.frame() %>%
-          mutate(
-            across(starts_with("conf"), rprint),
-            across(where(is.factor), as.character),
-            estimate = rprint(estimate),
-            p.value = zerolead(p.value),
-            s.value = rprint(s.value)
-          ),
-        
-        # ATC
-        avg_comparisons(
-          model = fit1[[y]],
-          newdata = subset(d1, Study == "NANOK"),
-          variables = list(Study = "revpairwise"),
-          vcov = ~subclass,
-          wts = "weights"
-        ) %>%
-          as.data.frame() %>%
-          select( -contains("predicted") ) %>%
-          mutate(
-            across(starts_with("conf"), rprint),
-            across(all_of( c("estimate","s.value") ), rprint),
-            across( where(is.factor), as.character ),
-            p.value = zerolead(p.value),
-          ),
-        
-        # proportion of SAs given education level
-        avg_predictions(
-          fit1[[y]],
-          variables = c("Study", "Education"),
-          wts = "weights"
-        ) %>%
-          as.data.frame() %>%
-          mutate(
-            across(starts_with("conf"), rprint),
-            across(where(is.factor), as.character),
-            estimate = rprint(estimate),
-            p.value = zerolead(p.value),
-            s.value = rprint(s.value)
-          ),
-        
-        # CATC
-        avg_comparisons(
-          model = fit1[[y]],
-          newdata = subset(d1, Study == "NANOK"),
-          variables = list(Study = "revpairwise"),
-          by = "Education",
-          vcov = ~subclass,
-          wts = "weights"
-        ) %>%
-          as.data.frame() %>%
-          select( -contains("predicted") ) %>%
-          mutate(
-            across(starts_with("conf"), rprint),
-            across(all_of( c("estimate","s.value") ), rprint),
-            across( where(is.factor), as.character ),
-            p.value = zerolead(p.value),
-          ),
-        
-        # interaction with education
-        avg_comparisons(
-          model = fit1[[y]],
-          newdata = subset(d1, Study == "NANOK"),
-          variables = list(Study = "revpairwise"),
-          by = "Education",
-          hypothesis = "revpairwise",
-          vcov = ~subclass,
-          wts = "weights"
-        ) %>%
-          as.data.frame() %>%
-          rename("contrast" = "term") %>%
-          mutate(
-            across(starts_with("conf"), rprint),
-            across(all_of( c("estimate","s.value") ), rprint),
-            across( where(is.factor), as.character ),
-            p.value = zerolead(p.value),
-          )
-        
-      ) %>%
-      
-      reduce(full_join) %>%
-      mutate( confint = paste0("[",conf.low,", ",conf.high,"]") ) %>%
-      select(Study, Education, contrast, estimate, confint, p.value, s.value) %>%
-      mutate(y = y, .before = 1)
+        preds( fit1[[y]], "Study" ), # mean score
+        comps( fit1[[y]], subset(d1, Study == "NANOK"), list(Study = "revpairwise"), F, "differenceavg", NULL), # ATC
+        preds( fit1[[y]], c("Study", "Education") ), # mean score given education level
+        comps( fit1[[y]], subset(d1, Study == "NANOK"), list(Study = "revpairwise"), "Education", "differenceavg", NULL), # CATC
+        comps( fit1[[y]], subset(d1, Study == "NANOK"), list(Study = "revpairwise"), "Education", "differenceavg", NULL, int = T) # Study/Education interaction
+
+      ) %>%  tidyit(y = y)
     
   ) %>%
     
@@ -369,6 +246,40 @@ list(
 ) %>%
   
   do.call( rbind.data.frame, . ) %>%
-  mutate( across( ends_with("value"), ~ if_else( is.na(contrast), NA, .x) ) )
+  write.table(file = here("tables","gcomp_results.csv"), sep =";", row.names = F, quote = F)
+
+
+# VISUALISE RESULTS ----
+
+lapply(
+  
+  names(fit1),
+  function(y) {
+    
+    # plot it
+    fig1 <- lapply(
+      
+      c("Education","Age_centr"),
+      function(m) plot_predictions(
+        
+        model = fit1[[y]],
+        condition = c(m, "Study"),
+        points = .8
+        
+      ) +
+        scale_colour_manual( values = c("navyblue","orange") ) +
+        scale_fill_manual( values = c("navyblue","orange") ) +
+        theme(
+          legend.position = if_else(m == "Education", "none", "bottom"),
+          panel.grid.minor = element_blank()
+        )
+    )
+    
+    # prepare a figure and save it
+    ( fig1[[1]] / fig1[[2]] )
+    ggsave( here( "figures", paste0("interactions_",y,".jpg") ), dpi = 300, width = 7, height = 9)
+    
+  }
+)
 
 
