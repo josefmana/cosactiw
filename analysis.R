@@ -69,14 +69,13 @@ tidyit <- function(x, y) reduce(x, full_join) %>%
   mutate(y = y, .before = 1)
 
 
-
 # PREPARE DATA ----
 d0 <-
 
-  read.xlsx(here("_raw","COSACTIW_NANOK_for-Eef.xlsx"), sheet = "data") %>%
+  read.xlsx(here("_raw","COSACTIW_NANOK_pro-jamovi.xlsx"), sheet = "cosactiw+nanok") %>%
   select(
-    1, Study, Age, `Education-2-cat`, `Regular-PA`, Type_of_prevailing_occupation_during_life, # predictors
-    `SA_New-BNT`, GDS15, GAI, FAQ # outcomes
+    1, Study, Age, `Education-2-cat`, Type_of_prevailing_occupation_during_life, # predictors
+    `SA_New-BNT`, `Regular-PA`, Z_SA, MMSE, GDS15, GAI, FAQ # outcomes
   ) %>%
   mutate(
     Age_centr = as.numeric(
@@ -102,7 +101,7 @@ d0 <-
     SA = factor(
       case_when(
         `SA_New-BNT` == 1 ~ 1,
-        `SA_New-BNT` == 2 ~ 0
+        `SA_New-BNT` == 0 ~ 0
       )
     ),
     PA = factor(
@@ -126,7 +125,7 @@ d0 <-
       .names = "log{col}"
     )
   ) %>%
-  select(ID, Study, Cosactiw, Age, Age_centr, Education, SA, PA, Profession, GDS15, GAI, FAQ, logGDS15, logGAI, logFAQ)
+  select(ID, Study, Cosactiw, Age, Age_centr, Education, SA, PA, Z_SA, MMSE, GDS15, GAI, FAQ, logGDS15, logGAI, logFAQ, Profession)
 
 
 # PROPENSITY SCORES MATCHING ----
@@ -164,6 +163,33 @@ fig0 <- lapply(
 (fig0$Age / fig0$Education)
 ggsave(plot = last_plot(), filename = here("figures","propensity_scores_check.jpg"), dpi = 300, width = 9, height = 9)
 
+# save table evaluating matching
+write.table(
+  
+  x = list(
+    summary(fit0)$sum.all %>% as.data.frame() %>% rownames_to_column("var") %>% mutate(type = "original", .before = 1),
+    summary(fit0)$sum.matched %>% as.data.frame() %>% rownames_to_column("var") %>% mutate(type = "matched", .before = 1)
+  ) %>%
+    do.call( rbind.data.frame, . ),
+  
+  file = here("tables","propensity_scores_summary.csv"),
+  sep = ",",
+  row.names = F,
+  quote = F
+  
+)
+
+# save table estimating ESSs
+write.table(
+  
+  summary(fit0)$nn %>% as.data.frame() %>% rownames_to_column("type"),
+  file = here("tables","propensity_scores_sample_sizes.csv"),
+  sep = ",",
+  row.names = F,
+  quote = F
+  
+)
+
 # extract propensity score-weighted data set
 d1 <- match.data(fit0)
 
@@ -182,13 +208,13 @@ write.table(
 # fit a set of weighted regressions, one for each outcome of interest
 fit1 <- lapply(
   
-  set_names( c("SA","GDS15","GAI","FAQ","logGDS15","logGAI","logFAQ") ),
+  set_names( c("SA","PA","Z_SA","MMSE","GDS15","GAI","FAQ","logGDS15","logGAI","logFAQ") ),
   function(y) glm(
     
     formula = as.formula( paste0(y," ~ Study * (Age_centr + Education)") ),
     data = d1,
     weights = weights,
-    family = if_else(y == "SA", "quasibinomial", "gaussian")
+    family = if_else(y %in% c("SA","PA"), "quasibinomial", "gaussian")
     
   )
 )
@@ -212,21 +238,28 @@ lapply(
 # EXTRACT RESULTS ----
 list(
   
-  # SA
-  list(
+  # SA & PA
+  lapply(
     
-    preds( fit1$SA, "Study" ), # proportion of SAs
-    comps( fit1$SA, subset(d1, Study == "NANOK"), list(Study = "revpairwise"), F, "lnratioavg", "exp"), # ATC
-    preds( fit1$SA, c("Study", "Education") ), # proportion of SAs given education level
-    comps( fit1$SA, subset(d1, Study == "NANOK"), list(Study = "revpairwise"), "Education", "lnratioavg", "exp"), # CATC
-    comps( fit1$SA, subset(d1, Study == "NANOK"), list(Study = "revpairwise"), "Education", "lnratioavg", "exp", int = T) # Study/Education interaction
-
-  ) %>% tidyit(y = "SA"),
+    names(fit1)[1:2],
+    function(y)
+      
+      list(
+        
+        preds( fit1[[y]], "Study" ), # proportion of SAs
+        comps( fit1[[y]], subset(d1, Study == "NANOK"), list(Study = "revpairwise"), F, "lnratioavg", "exp"), # ATC
+        preds( fit1[[y]], c("Study", "Education") ), # proportion of SAs given education level
+        comps( fit1[[y]], subset(d1, Study == "NANOK"), list(Study = "revpairwise"), "Education", "lnratioavg", "exp"), # CATC
+        comps( fit1[[y]], subset(d1, Study == "NANOK"), list(Study = "revpairwise"), "Education", "lnratioavg", "exp", int = T) # Study/Education interaction
+        
+      ) %>% tidyit(y = y)
+    
+  ) %>% do.call( rbind.data.frame, . ),
   
   # the rest
   lapply(
     
-    names(fit1)[-1],
+    names(fit1)[-1:-2],
     function(y)
       
       list(
@@ -239,14 +272,12 @@ list(
 
       ) %>%  tidyit(y = y)
     
-  ) %>%
-    
-    do.call( rbind.data.frame, . )
+  ) %>% do.call( rbind.data.frame, . )
   
 ) %>%
   
   do.call( rbind.data.frame, . ) %>%
-  write.table(file = here("tables","gcomp_results.csv"), sep =";", row.names = F, quote = F)
+  write.table(file = here("tables","gcomputation_results.csv"), sep =";", row.names = F, quote = F)
 
 
 # VISUALISE RESULTS ----
