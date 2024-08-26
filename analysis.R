@@ -29,17 +29,17 @@ rprint <- function(x, d=2) sprintf( paste0("%.",d,"f"), round(x, d) )
 zerolead <- function(x, d = 3) ifelse( x < .001, "< .001", sub("0","", rprint(x, d) ) )
 
 # compute predictions
-preds <- function(mod, vars) avg_predictions(
+preds <- function(mod, vars, cont = F) avg_predictions(
   mod,
   variables = vars,
   wts = "weights"
 ) %>%
   as.data.frame() %>%
   mutate(
-    across( starts_with("conf"), ~ rprint(100 * .x) ),
+    across( starts_with("conf"), ~ rprint( ifelse(cont == F ,100, 1) * .x) ),
     across(where(is.factor), as.character),
     across(ends_with("value"), ~ NA),
-    estimate = paste0( rprint(100 * estimate),"%" )
+    estimate = paste0( rprint( ifelse(cont == F, 100, 1) * estimate), ifelse(cont == F, "%", "") )
   )
 
 # compute comparisons
@@ -246,9 +246,9 @@ list(
       
       list(
         
-        preds( fit1[[y]], "Study" ), # proportion of SAs
+        preds( fit1[[y]], "Study", cont = F ), # proportion of SAs
         comps( fit1[[y]], subset(d1, Study == "NANOK"), list(Study = "revpairwise"), F, "lnratioavg", "exp"), # ATC
-        preds( fit1[[y]], c("Study", "Education") ), # proportion of SAs given education level
+        preds( fit1[[y]], c("Study", "Education"), cont = F ), # proportion of SAs given education level
         comps( fit1[[y]], subset(d1, Study == "NANOK"), list(Study = "revpairwise"), "Education", "lnratioavg", "exp"), # CATC
         comps( fit1[[y]], subset(d1, Study == "NANOK"), list(Study = "revpairwise"), "Education", "lnratioavg", "exp", int = T) # Study/Education interaction
         
@@ -264,9 +264,9 @@ list(
       
       list(
         
-        preds( fit1[[y]], "Study" ), # mean score
+        preds( fit1[[y]], "Study", cont = T ), # mean score
         comps( fit1[[y]], subset(d1, Study == "NANOK"), list(Study = "revpairwise"), F, "differenceavg", NULL), # ATC
-        preds( fit1[[y]], c("Study", "Education") ), # mean score given education level
+        preds( fit1[[y]], c("Study", "Education"), cont = T ), # mean score given education level
         comps( fit1[[y]], subset(d1, Study == "NANOK"), list(Study = "revpairwise"), "Education", "differenceavg", NULL), # CATC
         comps( fit1[[y]], subset(d1, Study == "NANOK"), list(Study = "revpairwise"), "Education", "differenceavg", NULL, int = T) # Study/Education interaction
 

@@ -1,22 +1,25 @@
 ---
 title: "Cool regressions for the 'Midlife Physical Activity and SuperAging: A Link to Better Cognitive Function, Functional Status, and Mental Health in Older Women'"
-shorttitle: "Cool regressions"
 author:
   - name: Josef Mana
-    corresponding: false
-    affiliations:
-      - name: PVSPS
-        department: OVV
-abstract: "In this report, I present a set of analyses based propensity-scores matching followed by g-computation of the averagae treatment on controls (ATC) effect of midlife/lifelong physical activity on current cognitive superaging status (SA), current physical activity level (PA) mean cognitive performance (Cognitice CS), cognitive screening (MMSE), depressive symptoms (GDS-15), anxiety (GAI), and functional non-independence (FAQ) symptoms in elderly ladies."
-keywords: [causal inference, propensity-scores matching, g-computation, old but gold, (g)old]
-author-note:
-  disclosures:
-    Check the repository [https://github.com/josefmana/cosactiw-brief-report.git](https://github.com/josefmana/cosactiw-brief-report.git).
+abstract: "In this report, I present a set of analyses based propensity-scores matching followed by g-computation of the averagae treatment on controls (ATC) effect of midlife/lifelong physical activity on current cognitive superaging status (SA), current physical activity level (PA) mean cognitive performance (Cognitive CS), cognitive screening (MMSE), depressive symptoms (GDS-15), anxiety (GAI), and functional non-independence (FAQ) symptoms in elderly ladies. Check the repository [https://github.com/josefmana/cosactiw-brief-report.git](https://github.com/josefmana/cosactiw-brief-report.git)."
 format:
-  apaquarto-pdf: default
+  pdf: default
 floatsintext: true
 bibliography: references.bib
+csl: apa.csl
+warning: false
+echo: false
 ---
+
+```{r}
+#| label: envir
+
+library(here)
+library(tidyverse)
+library(gt)
+
+```
 
 # Introduction
 
@@ -91,14 +94,167 @@ In this section I present only the results as they relate to specified research 
   4. the g-computation estimates of standard errors ought to be 'robust' to non-normality and (more importantly) heteroscedasticity from what I understood.
 :::
 
+{{< pagebreak >}}
+
+In this section, I present two kinds of estimates, (i) COSACTIW vs. NANOK comparisons adjusted for age and education (@tbl-marginaleffects), and (ii) COSACTIW vs. NANOK comparisons within each education level as well as comparisons between COSACTIW-versus-NANOK differences between education levels (i.e., sample/education level interaction) (@tbl-conditionaleffects). Nominal variables (SA and PA) are presented as estimated per group percentages for description/prediction and odds ratios (ORs) for comparisons. Continuous variables (Cognitive CS, MMSE, GDS-15, GAI and FAQ) are presented as estimated means for description/prediction and differences between means for comparisons. For each outcome variable, I present the estimate and its 95% confidence interval (CI), and for comparisons I further present p-values and s-values for statistical testing. S-value (i.e., the Shannon information) is a cognitive tool to help researchers intuitively evaluate strength of evidence against a null hypothesis contained in the results as equivalent to the number consecutive 'heads' tosses that would provide the same amount of evidence against the null hypothesis that the coin is fair [@greenland2019; @cole2021]. All null hypothesis take the form of 'no difference' implying OR = 1 or difference-in-means = 0.
 
 ```{r}
 #| label: tbl-marginaleffects
+#| tbl-cap: Model-based predictions and comparisons between COSACTIW and NANOK samples marginalised over age and education level
 
+# read the file
 read.csv( here("tables","gcomputation_results.csv"), sep = ";" ) %>%
-    filter( is.na(Education) ) %>%
-    filter( term != "higher - lower")
-    View()
+  
+  # keep only columns and rows of interest
+  filter( is.na(Education) ) %>%
+  filter( !grepl("higher", term) ) %>%
+  filter( !grepl("log", y) ) %>% # no log transformed variables
+  mutate( est = paste0(estimate," ",confint) ) %>%
+  select(-Education, -term, -contrast, -estimate, -confint) %>%
+  
+  # pivot it  
+  pivot_wider(names_from = Study, values_from = -all_of( c("y", "Study") ) ) %>%
+  select(-p.value_COSACTIW, -s.value_COSACTIW, -p.value_NANOK, -s.value_NANOK) %>%
+  
+  # sort columns  
+  relocate(p.value_NA, .after = ncol(.) ) %>%
+  relocate(s.value_NA, .after = ncol(.) ) %>%
+  rename("Estimate" = "est_NA") %>%
+  
+  # finishing touches to the input table
+  mutate(
+    y = case_when(
+      y == "Z_SA" ~ "Cognitive CS",
+      y == "GDS15" ~ "GDS-15",
+      .default = y
+    )
+  ) %>%
+    
+  # format it
+  gt(rowname_col = "y") %>%
+  
+  # add spanners  
+  tab_spanner( columns = starts_with("est_"), label = "Predictions", gather = F ) %>%
+  tab_spanner( columns = !starts_with("est_"), label = "Comparisons", gather = F ) %>%
+  
+  # format columns
+  cols_label(
+    est_COSACTIW ~ "COSACTIW",
+    est_NANOK ~ "NANOK",
+    p.value_NA ~ "p-value",
+    s.value_NA ~ "s-value"
+  ) %>%
+  cols_align(columns = -1, align = "center") %>%
+  
+  # add footnotes
+  tab_footnote(
+    locations = cells_column_spanners( starts_with("Predictions") ),
+    footnote = "Values represent model average prediction of proportions (SA and PA) or means (continuous variables) marginalised over levels of education and age."
+  ) %>%
+  
+  tab_footnote(
+    locations = cells_column_spanners( starts_with("Comparisons") ),
+    footnote = "Values represent odds ratios (SA and PA) or difference between means (continuous variables) of each outcome (rows) comparing COSACTIW vs NANOK marginalised over levels of education and age derived via g-computation after propensity scores matching for average treatment effect on controls (NANOK)."
+  ) %>%
+  
+  tab_footnote(
+    locations = cells_column_labels( !contains("value") ),
+    footnote = "Values are presented as estimate [95% confidence interval]."
+  ) %>%
+  
+  tab_footnote(
+    locations = cells_column_labels(s.value_NA),
+    footnote = "Shannon information transform of p-values. It can be interpreted as an answer to the question of how many consecutive 'heads' tosses would provide the same amount of evidence (or 'surprise') against the null hypothesis that the coin is fair?"
+  ) %>%
+  
+  opt_footnote_marks(marks = "letters")
+
+
+```
+
+`#show figure: set block(breakable: true)`{=typst}
+
+```{r}
+#| label: tbl-conditionaleffects
+#| tbl-cap: Model-based education-wise predictions and comparisons between COSACTIW and NANOK samples marginalised over age
+
+# read the file
+read.csv( here("tables","gcomputation_results.csv"), sep = ";" ) %>%
+  
+  # keep only columns and rows of interest
+  filter( Education %in% c("higher", "lower") | term == "higher - lower" ) %>%
+  filter( !grepl("log", y) ) %>% # no log transformed variables
+  mutate(
+        est = paste0(estimate," ",confint),
+        Education = case_when(
+            term == "higher - lower" & y %in% c("SA","PA") ~ "higher / lower",
+            term == "higher - lower" & !( y %in% c("SA","PA") ) ~ "higher - lower",
+            .default = Education
+        )
+    ) %>%
+  select(-contrast, -term, -estimate, -confint) %>%
+    
+  # pivot it
+  pivot_wider(
+    names_from = "Study",
+    values_from = -all_of(c("y", "Study", "Education") )
+  ) %>%
+  
+  # sort columns
+  select( -contains("value_COSACTIW"), -contains("value_NANOK") ) %>%
+  select(y, Education, starts_with("est"), contains("value") ) %>%
+  
+  # finishing touches to the input table
+  mutate(
+    y = case_when(
+      y == "Z_SA" ~ "Cognitive CS",
+      y == "GDS15" ~ "GDS-15",
+      .default = y
+    )
+  ) %>%
+  
+  # format it 
+  gt(groupname_col = "y") %>%
+  
+  # add spanners  
+  tab_spanner( columns = all_of( c("est_COSACTIW", "est_NANOK") ), label = "Predictions", gather = F ) %>%
+  tab_spanner( columns = all_of( c("est_NA", "p.value_NA", "s.value_NA") ), label = "Comparisons", gather = F ) %>%
+  
+  # format columns
+  cols_label(
+    est_COSACTIW ~ "COSACTIW",
+    est_NANOK ~ "NANOK",
+    est_NA ~ "Estimate",
+    p.value_NA ~ "p-value",
+    s.value_NA ~ "s-value"
+  ) %>%
+  cols_align(columns = -2:-1, align = "center") %>%
+  sub_missing(missing_text = "-") %>%
+  
+  # add footnotes
+  tab_footnote(
+    locations = cells_column_spanners( starts_with("Predictions") ),
+    footnote = "Values represent model average prediction of proportions (SA and PA) or means (continuous variables) marginalised over levels of education and age."
+  ) %>%
+  
+  tab_footnote(
+    locations = cells_column_spanners( starts_with("Comparisons") ),
+    footnote = "Values represent odds ratios (SA and PA) or difference between means (continuous variables) of each outcome (rows) comparing COSACTIW vs NANOK marginalised over levels of education and age derived via g-computation after propensity scores matching for average treatment effect on controls (NANOK)."
+  ) %>%
+  
+  tab_footnote(
+    locations = cells_column_labels( starts_with("est_") ),
+    footnote = "Values are presented as estimate [95% confidence interval]."
+  ) %>%
+  
+  tab_footnote(
+    locations = cells_column_labels(s.value_NA),
+    footnote = "Shannon information transform of p-values. It can be interpreted as an answer to the question of how many consecutive 'heads' tosses would provide the same amount of evidence (or 'surprise') against the null hypothesis that the coin is fair?"
+  ) %>%
+  
+  opt_footnote_marks(marks = "letters")
+
+
 ```
 
 {{< pagebreak >}}
