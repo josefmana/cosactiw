@@ -25,18 +25,18 @@ library(gt)
 
 This report is a buffet of results inspired by Table 1 of the main article. In the table, we provide in-sample comparisons of 'distribution similarity' (via Mann-Whitney U test) and 'stochastical independence' (via Pearson's $\chi^2$ test) between NANOK and COSACTIW samples putatively representing the difference between samples with ***a lot of midlife physical activity (COSACTIW)*** and ***much less midlife physical activity (NANOK)***. In other words, we evaluated whether midlife physical activity relates to different distributions (e.g., higher/lower scores) in variables such as composite cognitive score (Cognition CS), cognitive screening (MMSE), functional independence difficulties (FAQ), depressive (GDS-15) or anxiety symptoms (GAI), and whether physically active women during midlife in our sample were more or less likely to achieve superager status (SA) or to be more physically active currently (PA) than women not as much physically active during midlife. Unfortunately, these samples differed substsantially in education distribution and to a lesser degree, age variance, possible ruining our fun from in-sample comparisons if causal inference with practical implications for larger population is of interest. Consequently, in this report I derive estimates that should be more robust than in-sample comparisons under the assumption that age and education are sufficient for explaining away confounding between midlife physical activity and the outcomes of interest described above.
 
-::: callout-warning
-The assumption, that age and education are sufficient to close all the back-doors [@pearl1995; @shpitser2012; @perkovic2018; @cinelli2024], is both critical to ensuring validity of presented results as correct estimates of causal effects, and possibly easily disputable. However, having some assumption about causal relations, reporting it, and logically deriving results based on this assumption is superior to stating no assumption about causal relations and still interpreting results as causal, even if the assumption is incorrect.
-:::
-
 ::: {#tip-tips .callout-tip}
 ## Use of Tips in the text
 
-Throughout the report, I use the green 'Tip' boxes such as this one to try re-phasing information from the main text to what I hope will be more accessible form of presentation. To start, the introduction section says:
+Throughout the report, I use the green 'Tip' boxes such as this one to try re-phasing information from the main text to what I hope will be more accessible form of presentation. To ease into the report, you may consider reading only these boxes at first. To start, the introduction section says:
 
   - I looked into COSACTW-vs-NANOK differences in the same variables as those reported in Table 1,
   - I adjusted/'controlled' for age and education level in some fancy statistical procedure,
   - if we believe age and education are 'good controls' then adjusting for them leads to valid results.
+:::
+
+::: callout-warning
+The assumption, that age and education are sufficient to close all the back-doors [@pearl1995; @shpitser2012; @perkovic2018; @cinelli2024], is both critical to ensuring validity of presented results as correct estimates of causal effects, and possibly easily disputable. However, having some assumption about causal relations, reporting it, and logically deriving results based on this assumption is superior to stating no assumption about causal relations and still interpreting results as causal, even if the assumption is incorrect.
 :::
 
 ::: callout-important
@@ -79,7 +79,7 @@ In a full-blown article, this would go somewhere to Methods (it is quite a mouth
   - *"To adjust for confounding due to age and education, we used propensity scores matching to estimate marginal effect of midlife physical activity (operationalised as group membership to either COSACTIW or NANOK samples) on a set of cognitive function, and mental health outcomes. We used full matching on propensity scores estimated by a logit regression of the group membership on age and education level, which yielded good balance, as indicated by @fig-bal. Next, we estimated a set of logistic and linear regressions for nominal and continuous variables respectively, regressing each outcome on group membership, age, education level as well as group memebership interaction with both age and educaton. In all regressions, the full matching weights were included in the estimation as implemented in the glm() function of base R [@rsoft]. Finally, we estimated group-specific average values of each outcome of interest adjusted for age and education level, and compared these quantities via g-computation with a cluster-robust variance estimate of its standard error as implemented in the 'marginaleffects' R package [@arel-bundock]. Both, the matching and g-computation analyses were used to estimate the Average Treatment Effect on the Control (ATC) with COSACTIW representing treatment group and NANOK representing the control group."*
 :::
 
-![Disgtributional balance of age (top row) and education level (bottom row) in original sample (left column) and propensity scores weighted (right column) sample.](figures/propensity_scores_check.jpg){#fig-bal}
+![Distributional balance of age (top row) and education level (bottom row) in original sample (left column) and propensity scores weighted (right column) sample.](figures/propensity_scores_check.jpg){#fig-bal}
 
 {{< pagebreak >}}
 
@@ -94,16 +94,15 @@ In this section I present only the results as they relate to specified research 
   4. the g-computation estimates of standard errors ought to be 'robust' to non-normality and (more importantly) heteroscedasticity from what I understood.
 :::
 
-{{< pagebreak >}}
-
-In this section, I present two kinds of estimates, (i) COSACTIW vs. NANOK comparisons adjusted for age and education (@tbl-marginaleffects), and (ii) COSACTIW vs. NANOK comparisons within each education level as well as comparisons between COSACTIW-versus-NANOK differences between education levels (i.e., sample/education level interaction) (@tbl-conditionaleffects). Nominal variables (SA and PA) are presented as estimated per group percentages for description/prediction and odds ratios (ORs) for comparisons. Continuous variables (Cognitive CS, MMSE, GDS-15, GAI and FAQ) are presented as estimated means for description/prediction and differences between means for comparisons. For each outcome variable, I present the estimate and its 95% confidence interval (CI), and for comparisons I further present p-values and s-values for statistical testing. S-value (i.e., the Shannon information) is a cognitive tool to help researchers intuitively evaluate strength of evidence against a null hypothesis contained in the results as equivalent to the number consecutive 'heads' tosses that would provide the same amount of evidence against the null hypothesis that the coin is fair [@greenland2019; @cole2021]. All null hypothesis take the form of 'no difference' implying OR = 1 or difference-in-means = 0.
+::: callout-note
+I present three kinds of estimates, (i) COSACTIW vs. NANOK comparisons adjusted for age and education (@tbl-marginaleffects), (ii) COSACTIW vs. NANOK comparisons within each education level, and (iii) comparisons between COSACTIW-versus-NANOK differences between education levels (i.e., sample/education level interaction) (@tbl-conditionaleffects). Nominal variables (SA and PA) are presented as estimated per group percentages for description/prediction and odds ratios (ORs) for comparisons. Continuous variables (Cognitive CS, MMSE, GDS-15, GAI and FAQ) are presented as estimated means for description/prediction and differences between means for comparisons. For each outcome variable, I present the estimate and its 95% confidence interval (CI), and for comparisons I further present p-values and s-values for statistical testing. S-value (i.e., the Shannon information) is a cognitive tool to help researchers intuitively evaluate strength of evidence against a null hypothesis contained in the results as equivalent to the number consecutive 'heads' tosses that would provide the same amount of evidence against the null hypothesis that the coin is fair [@greenland2019; @cole2021]. All null hypothesis take the form of 'no difference' implying OR = 1 or difference-in-means = 0.
+:::
 
 ```{r}
 #| label: tbl-marginaleffects
 #| tbl-cap: Model-based predictions and comparisons between COSACTIW and NANOK samples marginalised over age and education level
 
-# read the file
-read.csv( here("tables","gcomputation_results.csv"), sep = ";" ) %>%
+t1 <- read.csv( here("tables","gcomputation_results.csv"), sep = ";" ) %>%
   
   # keep only columns and rows of interest
   filter( is.na(Education) ) %>%
@@ -128,10 +127,10 @@ read.csv( here("tables","gcomputation_results.csv"), sep = ";" ) %>%
       y == "GDS15" ~ "GDS-15",
       .default = y
     )
-  ) %>%
-    
-  # format it
-  gt(rowname_col = "y") %>%
+  )
+   
+# show it
+t1 %>% gt(rowname_col = "y") %>%
   
   # add spanners  
   tab_spanner( columns = starts_with("est_"), label = "Predictions", gather = F ) %>%
@@ -172,13 +171,10 @@ read.csv( here("tables","gcomputation_results.csv"), sep = ";" ) %>%
 
 ```
 
-`#show figure: set block(breakable: true)`{=typst}
-
 ```{r}
 #| label: tbl-conditionaleffects
 #| tbl-cap: Model-based education-wise predictions and comparisons between COSACTIW and NANOK samples marginalised over age
 
-# read the file
 read.csv( here("tables","gcomputation_results.csv"), sep = ";" ) %>%
   
   # keep only columns and rows of interest
@@ -252,16 +248,65 @@ read.csv( here("tables","gcomputation_results.csv"), sep = ";" ) %>%
     footnote = "Shannon information transform of p-values. It can be interpreted as an answer to the question of how many consecutive 'heads' tosses would provide the same amount of evidence (or 'surprise') against the null hypothesis that the coin is fair?"
   ) %>%
   
+  tab_source_note(
+    source_note = "The third row in each block represent interaction between sample (COSACTIW vs NANOK) and education level (higher versus lower)."
+  ) %>%
+  
   opt_footnote_marks(marks = "letters")
-
 
 ```
 
+
+## Marginal effects
+
+::: callout-important
+I will show a sentence that could in principle be used in a full-blown article:
+
+  - *From @tbl-marginaleffects, we can infer that when ATC is of interest and education and age are assumed to comprise a sufficient adjustment set for closing all the back-doors between midlife physical activity (operationalised as study sample) and outcomes of interest, midlife physical activity based on our data and models causes a clear improvement in later-life PA, MMSE, GDS-15 and FAQ (all p $\leq$ `r max( subset(t1, p.value_NA < .05)$p.value_NA )`, s $\geq$ `r min( subset(t1, p.value_NA < .05)$s.value_NA )`); there is some evidence of midlife physical activity leading to improvement in later-life GAI (p = `r subset(t1, y == 'GAI')$p.value_NA`, s = `r subset(t1, y == 'GAI')$s.value_NA`); and there is no clear evidence of midlife activity affecting later-life SA and cognitive CS (p $\geq$ `r max( subset(t1, p.value_NA > .1)$p.value_NA )`, s $\leq$ `r max( subset(t1, p.value_NA > .1)$s.value_NA )`).*
+:::
+
+::: {#tip-methods .callout-tip}
+## Results
+
+This (block above and @tbl-marginaleffects) is the meat of the report. I present here results that are conceptually equivalent to the ones from Table 1 in the manuscript, however, the results here are arrived at in a more fancy way that is hopefully also more reliable, and for sure more transparent. Just interpret @tbl-marginaleffects in the same way you would interpret any other similar table with statistics and either trust or question that its assumptions are enough to get the correct values. For more info, I guess it would be best for you to try to interpret the results by yourself and ask questions.
+:::
+
+## Conditional effects
+
+Additional results are presented in @tbl-conditionaleffects. The values presented therein represent descriptions/predictions of the outcomes of interest separately for lower and higher education, comparison COSACTIW vs NANOK withing each level of education, and comparison between these comparisons (i.e., interactions or difference-in-differences in case of continuous variables). The @tbl-conditionaleffects is accompanied by a set of figures at the end of this article (@fig-sa - @fig-faq) - the top panel of each figure includes information equivalent to @tbl-conditionaleffects, and the bottom panel of each figure includes similar information but with respect to age instead of education level.
+
+In @tbl-conditionaleffects, we can see that the beneficial effect of midlife physical activity (operationalised as study sample, *p*s generally less than .05) seems to be clear in persons with higher education (the top panel in each block), we do not have enough evidence to infer the beneficial effect of midlife physical activity in persons with lower education (the middle panel in each block, *p*s > .05). That said, with our data and models, we cannot reliably conclud that the effect of midlife physically activity differs between those with higher and lower education levels either (the bottom panel in each block, *p*s > .05).
+
+
+::: {#tip-methods .callout-tip}
+## More results
+
+This last part seems to me to be a little bit more exploratory. Overall, from the combined results in @tbl-marginaleffects and @tbl-conditionaleffects, we can infer:
+
+  - in some variables, physical activity in midlife seems to be advantegeous (@tbl-marginaleffects),
+  - in these same variables, the physical activity in midlife seems to be advantageous for women with higher level of education (@tbl-conditionaleffects)
+  - we cannot say if the physical activity in midlife is advantageous for women with lower level of education (it seems to be, however, not enough data may be the reason for high p-values in our sample)
+:::
+
+::: callout-note
+I use terms 'marginal effects' and 'conditional effects.' These are somewhat different things in causal inference and I use the terminology for correctness sake, you do not need to bother to understand it though to get the gist of my results. If you wanted to know more, you could check [this vignette](https://cran.r-project.org/web/packages/MatchIt/vignettes/estimating-effects.html).
+:::
+
 {{< pagebreak >}}
 
-# Appendix
+![Age and education interaction with study sample for cognitive superaging.](figures/interactions_SA.jpg){#fig-sa}
+
+![Age and education interaction with study sample for current physical activity level.](figures/interactions_PA.jpg){#fig-pa}
+
+![Age and education interaction with study sample for cognitive CS.](figures/interactions_Z_SA.jpg){#fig-zsa}
+
+![Age and education interaction with study sample for global cognition assessed via MMSE.](figures/interactions_MMSE.jpg){#fig-mmse}
+
+![Age and education interaction with study sample for depressive symptoms assessed via GDS-15.](figures/interactions_GDS15.jpg){#fig-gds}
+
+![Age and education interaction with study sample for anxiety symptoms assessed via GAI.](figures/interactions_GAI.jpg){#fig-gai}
 
 
-{{< pagebreak >}}
+![Age and education interaction with study sample for functional nonindependence assessed via FAQ.](figures/interactions_FAQ.jpg){#fig-faq}
 
 # References
