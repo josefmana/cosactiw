@@ -1,0 +1,7 @@
+type,Control,Treated
+All (ESS),70,225
+All,70,225
+Matched (ESS),70,43.7306425809728
+Matched,70,225
+Unmatched,0,0
+Discarded,0,0

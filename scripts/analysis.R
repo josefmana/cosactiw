@@ -70,6 +70,7 @@ tidyit <- function(x, y) reduce(x, full_join) %>%
 
 
 # PREPARE DATA ----
+
 d0 <-
 
   read.xlsx(here("_raw","COSACTIW_NANOK_pro-jamovi.xlsx"), sheet = "cosactiw+nanok") %>%
@@ -128,7 +129,9 @@ d0 <-
   select(ID, Study, Cosactiw, Age, Age_centr, Education, SA, PA, Z_SA, MMSE, GDS15, GAI, FAQ, logGDS15, logGAI, logFAQ, Profession)
 
 
-# PROPENSITY SCORES MATCHING ----
+# TABLE 1 (RE-)ANALYSIS ----
+
+## ---- PROPENSITY SCORES MATCHING ----
 
 # fit a logistic regression for Cosactiw variable with full matching via logistic regression
 fit0 <- matchit(
@@ -203,7 +206,7 @@ write.table(
 )
 
 
-# STATISTICAL MODELLING ----
+## ---- STATISTICAL MODELLING ----
 
 # fit a set of weighted regressions, one for each outcome of interest
 fit1 <- lapply(
@@ -235,7 +238,7 @@ lapply(
 )
 
 
-# EXTRACT RESULTS ----
+## ---- EXTRACT RESULTS ----
 list(
   
   # SA & PA
@@ -280,7 +283,7 @@ list(
   write.table(file = here("tables","gcomputation_results.csv"), sep =";", row.names = F, quote = F)
 
 
-# VISUALISE RESULTS ----
+## ---- VISUALISE RESULTS ----
 
 lapply(
   
@@ -314,3 +317,4 @@ lapply(
 )
 
 
+# TABLE 2 (RE-)ANALYSIS ----
