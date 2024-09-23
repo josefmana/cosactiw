@@ -1,7 +1,8 @@
 # This script is supposed to give such a data summaries that it can help with answering following questions:
 #
-# RQ1) Is there a bigger probability that a woman is SA given she was physically active during middle age?
-# RQ2) How does the probability of SA differ between education levels conditional on physical activity?
+# RQ1.1) How strong is the total causal effect of midlife PA on SA and other psychological variables?
+# RQ1.2) How strong is the direct causal effect of midlife PA on SA and other psychological variables?
+# RQ2) How strong is the total causal effect of SA on psychological variables?
 #
 
 rm( list = ls() ) # clean environment
@@ -9,15 +10,13 @@ rm( list = ls() ) # clean environment
 # load packages
 library(here)
 library(tidyverse)
-library(openxlsx)
-library(MatchIt)
-library(cobalt)
-library(patchwork)
+#library(patchwork)
+#library(performance)
 library(marginaleffects)
-library(performance)
 
 theme_set( theme_bw(base_size = 12) ) # set theme for plotting
 estimand <- "ATC" # set-up estimand (ATC, ATT, or ATE)
+d <- readRDS( here("_data.rds") ) # read data
 
 # set-up folder for results
 sapply( c("figures","tables"), function(i) if( !dir.exists(i) ) dir.create(i) )
@@ -69,171 +68,37 @@ tidyit <- function(x, y) reduce(x, full_join) %>%
   mutate(y = y, .before = 1)
 
 
-# PREPARE DATA ----
+# RQ1.1) TOTAL EFFECT OF MIDLIFE PHYSICAL ACTIVITY ----
 
-d0 <-
-
-  read.xlsx(here("_raw","COSACTIW_NANOK_pro-jamovi.xlsx"), sheet = "cosactiw+nanok") %>%
-  select(
-    1, Study, Age, `Education-2-cat`, Type_of_prevailing_occupation_during_life, # predictors
-    `SA_New-BNT`, `Regular-PA`, Z_SA, MMSE, GDS15, GAI, FAQ # outcomes
-  ) %>%
-  mutate(
-    Age_centr = as.numeric(
-      scale(Age, center = T, scale = F)
-    ),
-    Study = factor(
-      x = Study,
-      levels = c("COSACTIW","NANOK")
-    ),
-    Cosactiw = factor(
-      if_else(
-        condition = Study == "COSACTIW",
-        true = 1,
-        false = 0
-      )
-    ),
-    Education = factor(
-      x = `Education-2-cat`,
-      levels = 1:2,
-      labels = c("lower","higher"),
-      ordered = T
-    ),
-    SA = factor(
-      case_when(
-        `SA_New-BNT` == 1 ~ 1,
-        `SA_New-BNT` == 0 ~ 0
-      )
-    ),
-    PA = factor(
-      if_else(
-        condition = `Regular-PA` == 1,
-        true = 1,
-        false = 0
-      )
-    ),
-    Profession = factor(
-      case_when(
-        Type_of_prevailing_occupation_during_life == 1 ~ "manual",
-        Type_of_prevailing_occupation_during_life == 2 ~ "mostly manual",
-        Type_of_prevailing_occupation_during_life == 3 ~ "mostly mental",
-        Type_of_prevailing_occupation_during_life == 4 ~ "mental"
-      ),
-    ),
-    across(
-      .cols = c("FAQ","GDS15","GAI"),
-      .fns = ~ log(.x+1),
-      .names = "log{col}"
-    )
-  ) %>%
-  select(ID, Study, Cosactiw, Age, Age_centr, Education, SA, PA, Z_SA, MMSE, GDS15, GAI, FAQ, logGDS15, logGAI, logFAQ, Profession)
-
-
-# TABLE 1 (RE-)ANALYSIS ----
-
-## ---- PROPENSITY SCORES MATCHING ----
-
-# fit a logistic regression for Cosactiw variable with full matching via logistic regression
-fit0 <- matchit(
-  formula = Cosactiw ~ Age + Education,
-  data = d0,
-  method = "full",
-  distance = "glm",
-  estimand = estimand
-)
-
-# graphical check
-fig0 <- lapply(
+# prepare a data frame with model specifications
+specs1 <- data.frame(
   
-  set_names( x = c("Age","Education") ),
-  function(x) bal.plot(
-    
-    fit0,
-    var.name = x,
-    which = "both",
-    colors = c("navyblue","orange"),
-    position = if_else(x == "Age", "none", "bottom"),
-    sample.names = c("Non-weighted","Propensity score-weighted")
-    
-  ) +
-    
-    theme( plot.title = element_text(hjust = .5, face = "bold") ) +
-    labs( fill = "COSACTIW: " )
+  lab = c("SA","WHO-PA","Cognition CS", "MMSE", "FAQ", "GDS-15", "GAI", "log(FAQ)", "log(GDS-15)", "log(GAI)"),
+  y = c("SA", "PA", "Z_SA", "MMSE", "FAQ", "GDS15", "GAI", "logFAQ", "logGDS15", "logGAI"),
+  X1 = c( "Study * Education", rep("Study * (Education + Age_centr)", 9) ), # predictors for a total effect model
+  X2 = c( NA, rep("Study * (SA + Education + Age_centr)", 9) ), # predictors for a direct effect model
+  likelihood = c( rep("quasibinomial", 2), rep("gaussian", 8) ),
+  dataset = c( "PA2SA_teff", rep("PA2Y_teff", 9) )
   
-)
-
-# prepare a figure and save it
-(fig0$Age / fig0$Education)
-ggsave(plot = last_plot(), filename = here("figures","propensity_scores_check.jpg"), dpi = 300, width = 9, height = 9)
-
-# save table evaluating matching
-write.table(
-  
-  x = list(
-    summary(fit0)$sum.all %>% as.data.frame() %>% rownames_to_column("var") %>% mutate(type = "original", .before = 1),
-    summary(fit0)$sum.matched %>% as.data.frame() %>% rownames_to_column("var") %>% mutate(type = "matched", .before = 1)
-  ) %>%
-    do.call( rbind.data.frame, . ),
-  
-  file = here("tables","propensity_scores_summary.csv"),
-  sep = ",",
-  row.names = F,
-  quote = F
-  
-)
-
-# save table estimating ESSs
-write.table(
-  
-  summary(fit0)$nn %>% as.data.frame() %>% rownames_to_column("type"),
-  file = here("tables","propensity_scores_sample_sizes.csv"),
-  sep = ",",
-  row.names = F,
-  quote = F
-  
-)
-
-# extract propensity score-weighted data set
-d1 <- match.data(fit0)
-
-# save it
-write.table(
-  x = d1,
-  file = here("_dataset.scv"),
-  sep = ",",
-  row.names = F,
-  quote = F
 )
 
 
 ## ---- STATISTICAL MODELLING ----
 
 # fit a set of weighted regressions, one for each outcome of interest
-fit1 <- lapply(
+fit1.1 <- with(
   
-  set_names( c("SA","PA","Z_SA","MMSE","GDS15","GAI","FAQ","logGDS15","logGAI","logFAQ") ),
-  function(y) glm(
-    
-    formula = as.formula( paste0(y," ~ Study * (Age_centr + Education)") ),
-    data = d1,
-    weights = weights,
-    family = if_else(y %in% c("SA","PA"), "quasibinomial", "gaussian")
-    
-  )
-)
+  specs1, lapply(
+      
+      set_names(x = y, nm = lab),
+      function(i) glm(
 
-# save model check plots
-lapply(
-  
-  names(fit1),
-  function(y) ggsave(
-    
-    plot = plot( check_model(fit1[[y]]) ),
-    filename = here( "figures", paste0("model_checks_",y,".jpg") ),
-    dpi = 300,
-    width = 10,
-    height = 12
-    
+        formula = as.formula( paste0(i," ~ ",X1[y == i]) ),
+        data = d[[dataset[y == i]]],
+        weights = weights,
+        family = likelihood[y == i]
+
+      )
   )
 )
 
@@ -244,16 +109,16 @@ list(
   # SA & PA
   lapply(
     
-    names(fit1)[1:2],
+    names(fit1.1)[1:2],
     function(y)
       
       list(
         
         preds( fit1[[y]], "Study", cont = F ), # proportion of SAs
         comps( fit1[[y]], subset(d1, Study == "NANOK"), list(Study = "revpairwise"), F, "lnratioavg", "exp"), # ATC
-        preds( fit1[[y]], c("Study", "Education"), cont = F ), # proportion of SAs given education level
-        comps( fit1[[y]], subset(d1, Study == "NANOK"), list(Study = "revpairwise"), "Education", "lnratioavg", "exp"), # CATC
-        comps( fit1[[y]], subset(d1, Study == "NANOK"), list(Study = "revpairwise"), "Education", "lnratioavg", "exp", int = T) # Study/Education interaction
+        #preds( fit1[[y]], c("Study", "Education"), cont = F ), # proportion of SAs given education level
+        #comps( fit1[[y]], subset(d1, Study == "NANOK"), list(Study = "revpairwise"), "Education", "lnratioavg", "exp"), # CATC
+        #comps( fit1[[y]], subset(d1, Study == "NANOK"), list(Study = "revpairwise"), "Education", "lnratioavg", "exp", int = T) # Study/Education interaction
         
       ) %>% tidyit(y = y)
     

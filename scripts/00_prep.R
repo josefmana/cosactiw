@@ -3,7 +3,7 @@
 #
 # (i) extract relevant variables
 # (ii) do propensity matching
-
+#
 
 rm( list = ls() ) # clean environment
 
@@ -22,7 +22,7 @@ theme_set( theme_bw(base_size = 12) ) # set theme for plotting
 estimand <- "ATC" # set-up estimand (ATC, ATT, or ATE)
 
 # set-up folders for results and data
-sapply( c("figures","tables","_data"), function(i) if( !dir.exists(i) ) dir.create(i) )
+sapply( c("figures","tables"), function(i) if( !dir.exists(i) ) dir.create(i) )
 
 
 # EXTRACT DATA ----
@@ -97,7 +97,10 @@ d0 <- read.xlsx(here("_raw","COSACTIW_NANOK_pro-jamovi.xlsx"), sheet = "cosactiw
 # full matching via logistic regression for COSACTIW total & direct effect
 fit0 <- lapply(
   
-  set_names( x = c("Cosactiw ~ Age + Education","Cosactiw ~ Age + Education + SA"), nm = c("total","direct") ),
+  set_names(
+    x = c("Cosactiw ~ Education", "Cosactiw ~ Age + Education", "Cosactiw ~ Age + Education + SA"),
+    nm = c("SA", "teff", "deff")
+  ),
   function(X)
     
     matchit(
@@ -127,8 +130,9 @@ fig0 <- lapply(
         colors = c("navyblue","orange"),
         sample.names = c("Non-weighted","Propensity score-weighted"),
         position = case_when(
-          i == "total" & x == "Education" ~ "bottom",
-          i == "direct" & x == "SA" ~ "bottom",
+          i == "SA" & x == "Education" ~ "bottom",
+          i == "teff" & x == "Education" ~ "bottom",
+          i == "deff" & x == "SA" ~ "bottom",
           .default = "none"
         )
       ) +
@@ -140,14 +144,22 @@ fig0 <- lapply(
 )
 
 # prepare a figures and save them
-ggsave(plot = with(fig0$total, Age / Education ), filename = here("figures","midlifePA_teff_propscores_balplot.jpg"), dpi = 300, width = 8, height = 9)
-ggsave(plot = with(fig0$direct, Age / Education / SA ), filename = here("figures","midlifePA_deff_propscores_balplot.jpg"), dpi = 300, width = 8, height = 10)
+ggsave(plot = fig0$SA$Education, filename = here("figures","midlifePA2SA_teff_propscores_balplot.jpg"), dpi = 300, width = 7, height = 5)
+ggsave(plot = with(fig0$teff, Age / Education), filename = here("figures","midlifePA2Y_teff_propscores_balplot.jpg"), dpi = 300, width = 8, height = 9)
+ggsave(plot = with(fig0$deff, Age / Education / SA), filename = here("figures","midlifePA2Y_deff_propscores_balplot.jpg"), dpi = 300, width = 8, height = 10)
 
 # save tables evaluating matching
 lapply(
   
   names(fit0),
   function(i) {
+    
+    # prepare outcome name
+    nm <- if_else(
+      i == "SA",
+      true = "midlifePA2SA_teff_propscores_",
+      false = paste0("midlifePA2Y_",i,"_propscores_")
+    )
     
     # variables information
     write.table(
@@ -158,7 +170,7 @@ lapply(
       ) %>%
         do.call( rbind.data.frame, . ),
       
-      file = here( "tables", paste0("midlifePA_", substr(i,1,1),"eff_propscores_summary.csv") ),
+      file = here( "tables", paste0(nm,"summary.csv") ),
       sep = ",",
       row.names = F,
       quote = F
@@ -169,7 +181,7 @@ lapply(
     write.table(
       
       summary(fit0[[i]])$nn %>% as.data.frame() %>% rownames_to_column("type"),
-      file = here( "tables", paste0("midlifePA_", substr(i,1,1),"eff_propscores_ESS.csv") ),
+      file = here( "tables", paste0(nm,"ESS.csv") ),
       sep = ",",
       row.names = F,
       quote = F
@@ -180,7 +192,7 @@ lapply(
 )
 
 
-# RQ2: ATC OF SA WITHIN ----
+# RQ2: ATC OF SUPERAGING ----
 
 # full matching via logistic regression for COSACTIW total & direct effect
 fit1 <- lapply(
@@ -231,8 +243,8 @@ fig1 <- lapply(
 )
 
 # prepare a figures and save them
-ggsave(plot = with(fig1$COSACTIW, Age / Education ), filename = here("figures","SA_teff_cosactiw_propscores_balplot.jpg"), dpi = 300, width = 8, height = 9)
-ggsave(plot = with(fig1$BOTH, Age / Study / Education ), filename = here("figures","SA_teff_both_propscores_balplot.jpg"), dpi = 300, width = 8, height = 10)
+ggsave(plot = with(fig1$COSACTIW, Age / Education ), filename = here("figures","SA2Y_teff_cosactiw_propscores_balplot.jpg"), dpi = 300, width = 8, height = 9)
+ggsave(plot = with(fig1$BOTH, Age / Study / Education ), filename = here("figures","SA2Y_teff_both_propscores_balplot.jpg"), dpi = 300, width = 8, height = 10)
 
 # save tables evaluating matching
 lapply(
@@ -249,7 +261,7 @@ lapply(
       ) %>%
         do.call( rbind.data.frame, . ),
       
-      file = here( "tables", paste0("SA_teff_", tolower(i), "_propscores_summary.csv") ),
+      file = here( "tables", paste0("SA2Y_teff_", tolower(i), "_propscores_summary.csv") ),
       sep = ",",
       row.names = F,
       quote = F
@@ -260,7 +272,7 @@ lapply(
     write.table(
       
       summary(fit1[[i]])$nn %>% as.data.frame() %>% rownames_to_column("type"),
-      file = here( "tables", paste0("SA_teff_", tolower(i), "_propscores_ESS.csv") ),
+      file = here( "tables", paste0("SA2Y_teff_", tolower(i), "_propscores_ESS.csv") ),
       sep = ",",
       row.names = F,
       quote = F
@@ -276,10 +288,11 @@ lapply(
 saveRDS(
   
   object = list(
-    PA_teff = match.data(fit0$total),
-    PA_deff = match.data(fit0$direct),
-    SA_both = match.data(fit1$BOTH),
-    SA_cosa = match.data(fit1$COSACTIW)
+    PA2SA_teff = match.data(fit0$SA),
+    PA2Y_teff = match.data(fit0$teff),
+    PA2Y_deff = match.data(fit0$deff),
+    SA2Y_both = match.data(fit1$BOTH),
+    SA2Y_cosa = match.data(fit1$COSACTIW)
   ),
   
   file = here("_data.rds")
