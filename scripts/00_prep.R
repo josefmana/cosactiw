@@ -79,8 +79,7 @@ d0 <- read.xlsx(here("_raw","COSACTIW_NANOK_pro-jamovi.xlsx"), sheet = "cosactiw
         Type_of_prevailing_occupation_during_life == 4 ~ "mental"
       ),
     ),
-    `Total MA` = `Total-mental-activities`,
-    `SF1-Health` = Health,
+    Total_MA = `Total-mental-activities`,
     across(
       .cols = c("FAQ","GDS15","GAI"),
       .fns = ~ log(.x+1),
@@ -89,7 +88,7 @@ d0 <- read.xlsx(here("_raw","COSACTIW_NANOK_pro-jamovi.xlsx"), sheet = "cosactiw
   ) %>%
   
   # keep re-formatted variables
-  select(ID, Study, Cosactiw, Age, Age_centr, Education, SA, PA, Z_SA, MMSE, GDS15, GAI, FAQ, `Total MA`, `SF1-Health`, logGDS15, logGAI, logFAQ, Profession)
+  select(ID, Study, Cosactiw, Age, Age_centr, Education, SA, PA, Z_SA, MMSE, GDS15, GAI, FAQ, Total_MA, Health, logGDS15, logGAI, logFAQ, Profession)
 
 
 # RQ1: ATC OF MIDLIFE ACTIVITY ----
