@@ -161,9 +161,11 @@ list(
   # current PA
   list(
     
-    preds( fit1.2$`WHO-PA`, c("Study", "SA"), cont = F ), # proportion of SAs given education level
-    comps( fit1.2$`WHO-PA`, subset(d$PA2Y_deff, Study == "NANOK"), list(Study = "revpairwise"), "SA", "lnratioavg", "exp"), # CATC
-    comps( fit1.2$`WHO-PA`, subset(d$PA2Y_deff, Study == "NANOK"), list(Study = "revpairwise"), "SA", "lnratioavg", "exp", int = T) # Study/SA interaction
+    preds(fit1.2$`WHO-PA`, "Study", cont = F), # proportion of PAs
+    comps(fit1.2$`WHO-PA`, subset(d$PA2Y_deff, Study == "NANOK"), list(Study = "revpairwise"), F, "lnratioavg", "exp"), # ATC
+    preds(fit1.2$`WHO-PA`, c("Study", "SA"), cont = F), # proportion of PA given SA status
+    comps(fit1.2$`WHO-PA`, subset(d$PA2Y_deff, Study == "NANOK"), list(Study = "revpairwise"), "SA", "lnratioavg", "exp"), # CATC
+    comps(fit1.2$`WHO-PA`, subset(d$PA2Y_deff, Study == "NANOK"), list(Study = "revpairwise"), "SA", "lnratioavg", "exp", int = T) # Study/SA interaction
     
   ) %>% tidyit(y = "WHO-PA"),
   
@@ -173,9 +175,11 @@ list(
     names(fit1.2)[-1],
     function(y) list(
       
-      preds( fit1.2[[y]], c("Study", "SA"), cont = T ), # mean score given education level
-      comps( fit1.2[[y]], subset(d$PA2Y_deff, Study == "NANOK"), list(Study = "revpairwise"), "SA", "differenceavg", NULL), # CATC
-      comps( fit1.2[[y]], subset(d$PA2Y_deff, Study == "NANOK"), list(Study = "revpairwise"), "SA", "differenceavg", NULL, int = T) # Study/SA interaction
+      preds(fit1.2[[y]], "Study", cont = T), # mean score
+      comps(fit1.2[[y]], subset(d$PA2Y_deff, Study == "NANOK"), list(Study = "revpairwise"), F, "differenceavg", NULL), # ATC
+      preds(fit1.2[[y]], c("Study", "SA"), cont = T), # mean score given SA status
+      comps(fit1.2[[y]], subset(d$PA2Y_deff, Study == "NANOK"), list(Study = "revpairwise"), "SA", "differenceavg", NULL), # CATC
+      comps(fit1.2[[y]], subset(d$PA2Y_deff, Study == "NANOK"), list(Study = "revpairwise"), "SA", "differenceavg", NULL, int = T) # Study/SA interaction
       
     ) %>%  tidyit(y = y)
     
@@ -184,7 +188,7 @@ list(
 ) %>%
   
   reduce( ., full_join ) %>%
-  select(y, Study, term, contrast, estimate, conf.low, conf.high, p.value, s.value) %>%
+  select(y, Study, term, contrast, SA, estimate, conf.low, conf.high, p.value, s.value) %>%
   write.table(file = here("tables","gcomputation_midlifePA_deffs.csv"), sep =",", row.names = F, quote = F)
 
 
@@ -217,4 +221,59 @@ fit2 <- with(
     )
   )
 )
+
+# total effect of SA on different outcomes together with SA/midlife-PA interaction
+list(
+  
+  # current PA
+  list(
+    
+    preds(fit2$`WHO-PA`, "SA", cont = F), # proportion of PAs
+    comps(fit2$`WHO-PA`, subset(d$SA2Y_both, SA == 0), list(SA = "pairwise"), F, "lnratioavg", "exp"), # ATC
+    preds(fit2$`WHO-PA`, c("SA", "Study"), cont = F), # proportion of PA
+    comps(fit2$`WHO-PA`, subset(d$SA2Y_both, SA == 0), list(SA = "pairwise"), "Study", "lnratioavg", "exp"), # CATC
+    comps(fit2$`WHO-PA`, subset(d$SA2Y_both, SA == 0), list(SA = "pairwise"), "Study", "lnratioavg", "exp", int = T) # Study/SA interaction
+    
+  ) %>% tidyit(y = "WHO-PA"),
+  
+  # the rest
+  lapply(
+    
+    names(fit2)[-which(names(fit2) == "WHO-PA")],
+    function(y) {
+      
+      # results for variables present in both samples
+      if( specs2$dataset[specs2$lab == y] == "SA2Y_both" ) return(
+        
+        list(
+          
+          preds(fit2[[y]], "SA", cont = T), # mean score
+          comps(fit2[[y]], subset(d$SA2Y_both, SA == 0), list(SA = "pairwise"), F, "differenceavg", NULL), # ATC
+          preds(fit2[[y]], c("Study", "SA"), cont = T), # mean score given SA status
+          comps(fit2[[y]], subset(d$SA2Y_both, SA == 0), list(SA = "pairwise"), "Study", "differenceavg", NULL), # CATC
+          comps(fit2[[y]], subset(d$SA2Y_both, SA == 0), list(SA = "pairwise"), "Study", "differenceavg", NULL, int = T) # Study/SA interaction
+          
+        ) %>% tidyit(y = y)
+    
+      ) else return(
+        
+        # results for variables present in COSACTIW only
+        list(
+          
+          preds(fit2[[y]], "SA", cont = T), # mean score
+          comps(fit2[[y]], subset(d$SA2Y_cosa, SA == 0), list(SA = "pairwise"), F, "differenceavg", NULL) # ATC
+          
+        ) %>% tidyit(y = y)
+  
+      )
+      
+    }
+    
+  ) %>% reduce(full_join)
+  
+) %>%
+  
+  reduce(full_join) %>%
+  select(y, SA, Study, term, contrast, estimate, conf.low, conf.high, p.value, s.value) %>%
+  write.table(file = here("tables","gcomputation_SA_teffs.csv"), sep =",", row.names = F, quote = F)
 
