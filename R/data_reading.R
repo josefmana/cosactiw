@@ -12,9 +12,6 @@ import_data <- function(file, sheet) read.xlsx(here("_raw",file), sheet = sheet)
   
   # re-format
   mutate(
-    Age_centr = as.numeric(
-      scale(Age, center = T, scale = F)
-    ),
     Study = factor(
       x = Study,
       levels = c("COSACTIW","NANOK")
@@ -66,7 +63,7 @@ import_data <- function(file, sheet) read.xlsx(here("_raw",file), sheet = sheet)
   
   # keep re-formatted variables
   select(
-    ID, Study, Cosactiw, Age, Age_centr, Education,
+    ID, Study, Cosactiw, Age, Education,
     SA, PA, Z_SA, MMSE, GDS15, GAI, FAQ, Total_MA, Health,
     Profession, Marital_status
   )
