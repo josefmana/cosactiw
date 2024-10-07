@@ -139,7 +139,7 @@ stat_test <- function(fits, specs, sets, save = T) {
   if(save == T) {
     
     jpeg("results_table.jpg", units = "in", width = 7.5, height = 7, res = 300)
-    grid.table(tab, theme = ttheme_minimal(), rows = NULL)
+    grid.table(tab, theme = ttheme_default(), rows = NULL)
     dev.off()
     
   }
