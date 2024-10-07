@@ -126,21 +126,23 @@ stat_test <- function(fits, specs, sets, save = T) {
       outcome = if_else(outcome == "PA", "c-PA", outcome),
       moderator = if_else(moderator == "none", "-", moderator),
       Chisq = if_else(is.na(Chisq), "-", rprint(Chisq, 3) ),
-      df2 = if_else(df2 == Inf, "-", as.character(df2) )
+      F.ratio = rprint(F.ratio, 3),
+      df1 = as.character(df1),
+      df2 = if_else(df2 == Inf, "-", as.character(df2) ),
+      sig = if_else(p.value < .05, "*", ""),
+      p.value = zerolead(p.value)
     ) %>% # format variables of interest
     relocate(variable, .before = 1) %>%
     arrange(variable)
   
-  # save if called for
+  # save if called for & return the table
   if(save == T) {
     
-    jpeg("results_table.jpg", width = 400, height = 560, quality = 100)
-    plot( nice_table(tab, spacing = 1) )
+    jpeg("results_table.jpg", units = "in", width = 7.5, height = 7, res = 300)
+    grid.table(tab, theme = ttheme_minimal(), rows = NULL)
     dev.off()
     
   }
-  
-  # return the table
   return(tab)
   
 }
