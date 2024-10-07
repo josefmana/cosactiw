@@ -12,7 +12,7 @@ with adjustment sets derived from causal assumptions depicted in the following D
 
 Results are presented in the following table:
 
-![](results_table.csv)
+![](results_table.png)
 
 ## Transparency & Reproducibility
 
