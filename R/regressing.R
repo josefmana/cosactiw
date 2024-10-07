@@ -86,42 +86,58 @@ model_diagnose <- function(model_list) lapply( model_list, function(fit) check_m
 
 
 # extract results of statistical tests ----
-stat_test <- function(specs, fits) left_join(
+stat_test <- function(fits, specs, sets, save = T) {
   
-  # extract ANOVA-like tables
-  specs, lapply(
+  # prepare the table
+  tab <- left_join(
     
-    1:nrow(specs),
-    function(i) with(
+    # extract ANOVA-like tables
+    specs, lapply(
       
-      specs,
-      joint_tests( fits[[ paste(outcome[i], exposure_column[i], moderator[i], sep = "-") ]] ) %>%
-        filter(`model term` == term[i] ) %>% # keep only the causal estimate
-        mutate(outcome = outcome[i], .before = 1) # add outcome variable for later glueing
+      1:nrow(specs),
+      function(i) with(
+        
+        specs,
+        joint_tests( fits[[ paste(outcome[i], exposure_column[i], moderator[i], sep = "-") ]] ) %>%
+          filter(`model term` == term[i] ) %>% # keep only the causal estimate
+          mutate(outcome = outcome[i], .before = 1) # add outcome variable for later glueing
+        
+      )
       
-    )
-
+    ) %>%
+      
+      # tidy it up
+      reduce(full_join) %>%
+      rename("term" = "model term"),
+    
+    # pull specifications and results to a single file
+    by = c("outcome", "term")
+    
   ) %>%
     
-    # tidy it up
-    reduce(full_join) %>%
-    rename("term" = "model term"),
+    # finish it
+    select(outcome, exposure, moderator, Chisq, F.ratio, df1, df2, p.value) %>% # keep variables of interest
+    mutate(
+      variable = factor(
+        sapply(1:nrow(.), function(i) unique( sets[grepl(outcome[i], sets$outcome_variables), "outcome"] ) ),
+        levels = c("Cognition", "Affect", "c-PA"),
+        ordered = T
+      ),
+      outcome = if_else(outcome == "PA", "c-PA", outcome),
+      moderator = if_else(moderator == "none", "-", moderator),
+      Chisq = if_else(is.na(Chisq), "-", rprint(Chisq, 3) ),
+      F.ratio = rprint(F.ratio, 3),
+      df1 = as.character(df1),
+      df2 = if_else(df2 == Inf, "-", as.character(df2) ),
+      sig = if_else(p.value < .05, "*", ""),
+      p.value = zerolead(p.value)
+    ) %>% # format variables of interest
+    relocate(variable, .before = 1) %>%
+    arrange(variable)
   
-  # pull specifications and results to a single file
-  by = c("outcome", "term")
+  # save if called for & return the table
+  write.table(x = tab, file = "results_table.csv", sep = ",", row.names = F, quote = F)
+  return(tab)
   
-) %>%
-  
-  # finish it
-  select(outcome, exposure, moderator, Chisq, F.ratio, df1, df2, p.value) %>% # keep variables of interest
-  arrange(outcome) %>%
-  mutate(
-    moderator = if_else(moderator == "none", "-", moderator),
-    Chisq = if_else(is.na(Chisq), "-", rprint(Chisq, 3) ),
-    F.ratio = rprint(F.ratio, 3),
-    df1 = as.character(df1),
-    df2 = if_else(df2 == Inf, "-", as.character(df2) ),
-    sig = if_else(p.value < .05, "*", ""),
-    p.value = zerolead(p.value)
-  ) # format variables of interest
+}
 

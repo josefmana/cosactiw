@@ -3,10 +3,18 @@
 My humble contribution to the COSACTIW vs NANOK comparisons of the primary outcome report approximating
 the effect of midlife physical activity on (super)aging parameters.
 
+## Analysis & Summary of Results
+
 The analysis consists of a set of GLMs (logistic for binary variables, least squares Gaussian regressions for continuous variables)
 with adjustment sets derived from causal assumptions depicted in the following DAG:
 
 ![](DAG.jpg)
+
+Results are presented in the following table:
+
+![](results_table.csv)
+
+## Transparency & Reproducibility
 
 The [renv](https://rstudio.github.io/renv/) package was used to create reproducible environment for the project.
 To set-up R environment for reproduction of our results, run:
