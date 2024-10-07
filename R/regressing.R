@@ -131,8 +131,16 @@ stat_test <- function(fits, specs, sets, save = T) {
     relocate(variable, .before = 1) %>%
     arrange(variable)
   
-  # save if called for & return the table
-  if(save == T) save_as_image(nice_table(tab), path = "results_table.png")
+  # save if called for
+  if(save == T) {
+    
+    jpeg("results_table.jpg", width = 400, height = 560, quality = 100)
+    plot( nice_table(tab, spacing = 1) )
+    dev.off()
+    
+  }
+  
+  # return the table
   return(tab)
   
 }
