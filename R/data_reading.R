@@ -12,7 +12,7 @@ import_data <- function(file, sheet) read.xlsx(here("_raw",file), sheet = sheet)
   
   # re-format
   mutate(
-    Study = factor(
+    mPA = factor(
       x = Study,
       levels = c("COSACTIW","NANOK")
     ),
@@ -35,7 +35,7 @@ import_data <- function(file, sheet) read.xlsx(here("_raw",file), sheet = sheet)
         `SA_New-BNT` == 0 ~ 0
       )
     ),
-    PA = factor(
+    cPA = factor(
       if_else(
         condition = `Regular-PA` == 1,
         true = 1,
@@ -50,11 +50,11 @@ import_data <- function(file, sheet) read.xlsx(here("_raw",file), sheet = sheet)
         Type_of_prevailing_occupation_during_life == 4 ~ "mental"
       ),
     ),
-    Marital_status = factor(
+    Status = factor(
       case_when(
         Marital_status == 1 ~ "Non-married",# "Single",
         Marital_status == 2 ~ "Married/partnership",
-        Marital_status == 3 ~ "Widowed",
+        Marital_status == 3 ~ "Non-married", # "Widowed",
         Marital_status == 4 ~ "Non-married" #"Divorced"
       )
     ),
@@ -63,8 +63,8 @@ import_data <- function(file, sheet) read.xlsx(here("_raw",file), sheet = sheet)
   
   # keep re-formatted variables
   select(
-    ID, Study, Cosactiw, Age, Education,
-    SA, PA, Z_SA, MMSE, GDS15, GAI, FAQ, Total_MA, Health,
-    Profession, Marital_status
+    ID, mPA, Cosactiw, Age, Education,
+    SA, cPA, Z_SA, MMSE, GDS15, GAI, FAQ, Total_MA, Health,
+    Profession, Status
   )
 

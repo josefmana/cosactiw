@@ -3,13 +3,28 @@
 # for a subsequent statistical analysis
 
 
+# function for changing set to equation syntax ----
+set2equation <- function(x, bracket = F) sapply(
+  
+  X = 1:length(x),
+  FUN = function(i) if_else(
+    
+    condition = bracket == T,
+    true = sub("{", "(", sub("}", ")", gsub(", ", " + ", x[i]), fixed = T), fixed = T),
+    false = sub("{", "", sub("}", "", gsub(", ", " + ", x[i]), fixed = T), fixed = T)
+    
+  ),
+  USE.NAMES = F
+  
+)
+
 # prepare & save the DAG ----
 make_dag <- function(plot = T) {
   
   # set-up a data frame with node labels and coordinates
   nms <- data.frame(
     
-    name = c("S1", "S2", "S3", "Age", "Edu", "mPA", "cPA", "Cog", "Aff", "Stat"),
+    name = c("S1", "S2", "S3", "Age", "Education", "mPA", "cPA", "Cognition", "Affect", "Status"),
     label = c( rep("S",3), "Age", "Educ.", "m-PA", "c-PA", "Cogn.", "Affect", "Mar.\nStat."),
     x = c(rep(1,2), 3, 3, 1, 1, 2, 2, 2, 3),
     y = c(0, 4, 0, 1, 3, 1, 1, 3, 2, 3)
@@ -19,12 +34,12 @@ make_dag <- function(plot = T) {
   # prepare the DAG
   dag <- dagify(
     
-    Aff ~ mPA + cPA + Age + Stat + Edu,
-    Cog ~ mPA + cPA + Edu + Aff + Age + Stat,
-    Stat ~ Age,
-    cPA ~ mPA + Age + Edu + Stat,
-    mPA ~ Edu + S1,
-    Edu ~ S2,
+    Affect ~ mPA + cPA + Age + Status + Education,
+    Cognition ~ mPA + cPA + Education + Affect + Age + Status,
+    Status ~ Age,
+    cPA ~ mPA + Age + Education + Status,
+    mPA ~ Education + S1,
+    Education ~ S2,
     Age ~ S3,
     
     latent = c("S1", "S2", "S3"),
@@ -36,7 +51,7 @@ make_dag <- function(plot = T) {
     arrange(name) %>%
     mutate(
       selection = if_else(name %in% paste0("S",1:3), "1", "0"),
-      curve = if_else( is.na(direction), NA, if_else(name == "cPA" & to == "Cog", 0.12, 0) )
+      curve = if_else( is.na(direction), NA, if_else(name == "cPA" & to == "Cognition", 0.12, 0) )
     )
   
   # basic DAG
@@ -68,72 +83,48 @@ make_dag <- function(plot = T) {
 
 
 # table outcomes, exposures and adjustment sets ----
-adjustment_table <- function() data.frame(
+adjustment_table <- function(DAG) data.frame(
   
-  outcome = c(
-    rep("Cognition",4),
-    rep("Affect",3),
-    rep("c-PA",2)
-  ),
-  
+  outcome = c( rep("Cognition",4), rep("Affect",3), rep("cPA",2) ),
   exposure = c(
-    rep("m-PA",2), "Education", "Marital Status", # Y = Cognition
-    rep("m-PA",2), "Marital Status", # Y = Affect/Mental Health
-    "m-PA", "Marital Status" # Y = c-PA
+    "mPA", "cPA", "Education", "Status", # Y = Cognition
+    "mPA", "cPA", "Status", # Y = Affect/Mental Health
+    "mPA", "Status" # Y = c-PA
   ),
-  
-  mediator = c(
-    rep(NA,4), # Y = Cognition
-    rep(NA,3), # Y = Affect/Mental Health
-    rep(NA,2) # Y = c-PA
-  ),
-  
-  moderator = c(
-    NA, "Education", rep(NA, 2), # Y = Cognition
-    NA, "Education", NA, # Y = Affect/Mental Health
-    rep(NA,2) # Y = c-PA
-  ),
-  
   effect = "total",
+  adjustment_type = "canonical"
   
-  adjustment_type = "canonical",
+) %>%
   
-  adjustment_set = c(
-    "Age, Education, Marital Status", "Age, Marital Status", # Cognition ~ f(m-PA)
-    "Age, Marital Status", #"Age, Marital Status", # Cognition ~ f(Education)
-    "Age, Education, m-PA", # Cognition ~ f(Marital Status)
-    "Age, Education, Marital Status", # Affect ~ f(m-PA)
-    "Age, Education, m-PA", "Age, Education", # Affect ~ f(Marital Status)
-    "Age, Education, Marital Status", # c-PA ~ f(m-PA)
-    "Age, Education, m-PA"  # c-PA ~ f(Marital Status)
-  ),
-  
-  propensity_scores_matching = c(
-    rep("Cosactiw ~ Age + Education + Marital_status", 2),
-    "Education ~ Age + Marital_status", #"Education ~ Age + Marital_status + Cosactiw",
-    "Marital_status ~ Age + Education + Cosactiw",
-    rep("Cosactiw ~ Age + Education + Marital_status", 2),
-    "Marital_status ~ Age + Education + Cosactiw",
-    "Cosactiw ~ Age + Education + Marital_status",
-    "Marital_status ~ Age + Education + Cosactiw"
-  ),
-  
-  X = c(
-    rep("Cosactiw * (Education + Age + Marital_status)", 2),
-    "Education + Age + Marital_status", #NA,
-    "Marital_status * (Education + Age + Cosactiw)",
-    rep("Cosactiw * (Education + Age + Marital_status)", 2),
-    "Marital_status * (Education + Age + Cosactiw)",
-    "Cosactiw * (Education + Age + Marital_status)",
-    "Marital_status * (Education + Age + Cosactiw)"
+  mutate(
+    
+    adjustment_set = sapply(
+      
+      1:nrow(.),
+      function(i) ( DAG %>% ggdag_adjustment_set(
+        
+        outcome = outcome[i],
+        exposure = exposure[i],
+        effect = effect[i],
+        type = adjustment_type[i]
+        
+      ) )$data %>%
+        
+        select(set) %>%
+        unique() %>%
+        unlist(use.names = F)
+      
+    ),
+    
+    Y = case_when(
+      
+      outcome == "Cognition" ~ "{MMSE, FAQ, SA, Z_SA}",
+      outcome == "Affect" ~ "{GDS15, GAI}",
+      outcome == "cPA" ~ "{cPA}"
+      
+    ),
+    
+    X = paste0( exposure," * ",set2equation(adjustment_set, bracket = T) ),
+    matching = paste0( exposure," ~ ",set2equation(adjustment_set, bracket = F) )
+    
   )
-  
-) %>% mutate(
-  
-  outcome_variables = case_when(
-    outcome == "Cognition" ~ "MMSE, FAQ, SA, Z_SA",
-    outcome == "Affect" ~ "GDS15, GAI",
-    outcome == "c-PA" ~ "PA"
-  )
-  
-)

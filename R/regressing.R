@@ -17,6 +17,7 @@
 # utility functions ----
 rprint <- function(x, d=2) sprintf( paste0("%.",d,"f"), round(x, d) )
 zerolead <- function(x, d = 3) ifelse( x < .001, "< .001", sub("0","", rprint(x, d) ) )
+remove_brackets <- function(x) sub("{", "", sub("}", "", x, fixed = T), fixed = T)
 
 # model specifications ----
 model_specs <- function(table) lapply(
@@ -24,35 +25,18 @@ model_specs <- function(table) lapply(
   1:nrow(table),
   function(i) lapply(
     
-    strsplit(unlist(table[i, "outcome_variables"], use.names = F), ", ", fixed = T)[[1]],
+    strsplit(unlist( remove_brackets(table[i, "Y"]), use.names = F), ", ", fixed = T)[[1]],
     function(y) data.frame(
       
       outcome = y,
       exposure = table[i, "exposure"],
-      moderator = ifelse( is.na( table[i, "moderator"] ), "none", table[i, "moderator"] ),
+      #moderator = ifelse( is.na( table[i, "moderator"] ), "none", table[i, "moderator"] ),
       formula = paste0( y, " ~ ", table[i, "X"] ),
       likelihood = case_when(
         y %in% c("MMSE","FAQ","Z_SA","GDS15","GAI") ~ "gaussian",
-        y %in% c("SA","PA") ~ "binomial"
+        y %in% c("SA","cPA") ~ "binomial"
       )
 
-    ) %>% mutate(
-      
-      # add variable column for better work
-      exposure_column = case_when(
-        exposure == "m-PA" ~ "Cosactiw",
-        exposure == "Marital Status" ~ "Marital_status",
-        .default = exposure
-      ),
-      
-      term = if_else(
-        condition = moderator == "none",
-        true = exposure_column,
-        false = paste0(exposure_column,":",moderator)
-      ),
-      
-      .after = moderator
-      
     )
 
   ) %>% do.call( rbind.data.frame, . )
@@ -63,14 +47,29 @@ model_specs <- function(table) lapply(
 # fit regressions ----
 model_fit <- function(data, specs, log = T, contr = T) {
   
-  if(log == T) data <- data %>% mutate( across( all_of( c("FAQ","GDS15","GAI") ), ~ log(.x+1) ) ) # log transform if called for
-  if(contr == T) for( i in names(data) ) if ( is.factor(data[ ,i]) ) contrasts(data[ ,i]) <- contr.sum( length( levels(data[ ,i]) ) ) # do orthogonal contrasts if called for
-  data$Age <- as.numeric( scale(data$Age, center = T, scale = F) ) # centre age
+  # log transform if called for
+  if(log == T) data <- data %>%
+      mutate(
+        across(
+          all_of( c("FAQ","GDS15","GAI") ),
+          ~ log(.x+1)
+        )
+      )
+  
+  # do orthogonal contrasts if called for
+  if(contr == T) for( i in names(data) ) {
+    
+    if ( is.factor(data[ ,i]) ) contrasts(data[ ,i]) <- contr.sum( length( levels(data[ ,i]) ) )
+    
+  }
+  
+  # centre age
+  data$Age <- as.numeric( scale(data$Age, center = T, scale = F) )
   
   # compute the regressions
   lapply(
     
-    set_names( x = 1:nrow(specs), nm = with( specs, paste(outcome, exposure_column, moderator, sep = "-") ) ),
+    set_names( x = 1:nrow(specs), nm = with( specs, paste(outcome, exposure, sep = " ~ ") ) ),
     function(i) with(
       
       specs, return( glm( formula = as.formula(formula[i]), family = likelihood[i], data = data ) )
@@ -98,8 +97,8 @@ stat_test <- function(fits, specs, sets, save = T) {
       function(i) with(
         
         specs,
-        joint_tests( fits[[ paste(outcome[i], exposure_column[i], moderator[i], sep = "-") ]] ) %>%
-          filter(`model term` == term[i] ) %>% # keep only the causal estimate
+        joint_tests( fits[[ paste(outcome[i], exposure[i], sep = " ~ ") ]] ) %>%
+          filter(`model term` == exposure[i] ) %>% # keep only the causal estimate
           mutate(outcome = outcome[i], .before = 1) # add outcome variable for later glueing
         
       )
@@ -108,23 +107,21 @@ stat_test <- function(fits, specs, sets, save = T) {
       
       # tidy it up
       reduce(full_join) %>%
-      rename("term" = "model term"),
+      rename("exposure" = "model term"),
     
     # pull specifications and results to a single file
-    by = c("outcome", "term")
+    by = c("outcome", "exposure")
     
   ) %>%
     
     # finish it
-    select(outcome, exposure, moderator, Chisq, F.ratio, df1, df2, p.value) %>% # keep variables of interest
+    select(outcome, exposure, Chisq, F.ratio, df1, df2, p.value) %>% # keep variables of interest
     mutate(
       variable = factor(
-        sapply(1:nrow(.), function(i) unique( sets[grepl(outcome[i], sets$outcome_variables), "outcome"] ) ),
-        levels = c("Cognition", "Affect", "c-PA"),
+        sapply(1:nrow(.), function(i) unique( sets[grepl(outcome[i], sets$Y), "outcome"] ) ),
+        levels = c("Cognition", "Affect", "cPA"),
         ordered = T
       ),
-      outcome = if_else(outcome == "PA", "c-PA", outcome),
-      moderator = if_else(moderator == "none", "-", moderator),
       Chisq = if_else(is.na(Chisq), "-", rprint(Chisq, 3) ),
       F.ratio = rprint(F.ratio, 3),
       df1 = as.character(df1),
@@ -143,6 +140,7 @@ stat_test <- function(fits, specs, sets, save = T) {
     dev.off()
     
   }
+  
   return(tab)
   
 }
