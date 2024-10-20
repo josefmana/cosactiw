@@ -9,10 +9,10 @@ models/**/*.rds
 **/*.ttt
 **/*.fff
 **/*.log
+Rplots.pdf
 
-# ignore all _ folders & files
+# ignore all _* folders
 _*/
-**/_*
 
 # History files
 .Rprofile

@@ -30,7 +30,8 @@ model_specs <- function(table) lapply(
       
       outcome = y,
       exposure = table[i, "exposure"],
-      #moderator = ifelse( is.na( table[i, "moderator"] ), "none", table[i, "moderator"] ),
+      moderator = ifelse( is.na( table[i, "moderator"] ), "1", table[i, "moderator"] ),
+      term = table[i , "term"],
       formula = paste0( y, " ~ ", table[i, "X"] ),
       likelihood = case_when(
         y %in% c("MMSE","FAQ","Z_SA","GDS15","GAI") ~ "gaussian",
@@ -69,10 +70,11 @@ model_fit <- function(data, specs, log = T, contr = T) {
   # compute the regressions
   lapply(
     
-    set_names( x = 1:nrow(specs), nm = with( specs, paste(outcome, exposure, sep = " ~ ") ) ),
+    set_names( x = 1:nrow(specs), nm = with( specs, paste0(outcome," ~ ",exposure," | ",moderator) ) ),
     function(i) with(
       
-      specs, return( glm( formula = as.formula(formula[i]), family = likelihood[i], data = data ) )
+      specs,
+      return( glm( formula = as.formula(formula[i]), family = likelihood[i], data = data ) )
       
     )
   ) %>% return()
@@ -87,6 +89,28 @@ model_diagnose <- function(model_list) lapply( model_list, function(fit) check_m
 # extract results of statistical tests ----
 stat_test <- function(fits, specs, sets, save = T) {
   
+  # extract the emmeans
+  emm <- lapply(
+    
+    X = set_names(x = 1:nrow(specs), nm = names(fits) ),
+    FUN = function(i) with(
+      
+      specs, return(
+        
+        emmeans(
+          object = fits[[ paste0(outcome[i]," ~ ",exposure[i]," | ",moderator[i]) ]],
+          specs = formula( paste0("pairwise ~ ",exposure[i]) ),
+          by = moderator[i],
+          type = "response"
+        ) %>%
+          
+          as.data.frame() #%>%
+          
+        
+      )
+    )
+  )
+  
   # prepare the table
   tab <- left_join(
     
@@ -97,8 +121,8 @@ stat_test <- function(fits, specs, sets, save = T) {
       function(i) with(
         
         specs,
-        joint_tests( fits[[ paste(outcome[i], exposure[i], sep = " ~ ") ]] ) %>%
-          filter(`model term` == exposure[i] ) %>% # keep only the causal estimate
+        joint_tests( fits[[ paste0(outcome[i]," ~ ",exposure[i]," | ",moderator[i]) ]] ) %>%
+          filter(`model term` == term[i] ) %>% # keep only the causal estimate
           mutate(outcome = outcome[i], .before = 1) # add outcome variable for later glueing
         
       )
@@ -107,20 +131,24 @@ stat_test <- function(fits, specs, sets, save = T) {
       
       # tidy it up
       reduce(full_join) %>%
-      rename("exposure" = "model term"),
+      rename("term" = "model term"),
     
     # pull specifications and results to a single file
-    by = c("outcome", "exposure")
+    by = c("outcome", "term")
     
   ) %>%
     
     # finish it
-    select(outcome, exposure, Chisq, F.ratio, df1, df2, p.value) %>% # keep variables of interest
+    select(outcome, exposure, moderator, Chisq, F.ratio, df1, df2, p.value) %>% # keep variables of interest
     mutate(
+      
+      # format variables of interest
       variable = factor(
+  
         sapply(1:nrow(.), function(i) unique( sets[grepl(outcome[i], sets$Y), "outcome"] ) ),
         levels = c("Cognition", "Affect", "cPA"),
         ordered = T
+
       ),
       Chisq = if_else(is.na(Chisq), "-", rprint(Chisq, 3) ),
       F.ratio = rprint(F.ratio, 3),
@@ -128,7 +156,9 @@ stat_test <- function(fits, specs, sets, save = T) {
       df2 = if_else(df2 == Inf, "-", as.character(df2) ),
       sig = if_else(p.value < .05, "*", ""),
       p.value = zerolead(p.value)
-    ) %>% # format variables of interest
+
+    ) %>%
+
     relocate(variable, .before = 1) %>%
     arrange(variable)
   
