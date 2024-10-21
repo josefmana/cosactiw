@@ -89,7 +89,8 @@ model_diagnose <- function(model_list) lapply( model_list, function(fit) check_m
 # extract results of statistical tests ----
 stat_test <- function(fits, specs, sets, save = T) {
   
-  # extract the emmeans
+  
+  # compute the means
   emm <- lapply(
     
     X = set_names(x = 1:nrow(specs), nm = names(fits) ),
@@ -98,79 +99,106 @@ stat_test <- function(fits, specs, sets, save = T) {
       specs, return(
         
         emmeans(
+          
           object = fits[[ paste0(outcome[i]," ~ ",exposure[i]," | ",moderator[i]) ]],
           specs = formula( paste0("pairwise ~ ",exposure[i]) ),
           by = moderator[i],
           type = "response"
-        ) %>%
           
-          as.data.frame() #%>%
-          
+        )
+      )
+    )
+    
+  )
+  
+  # extract conditional means
+  est <- lapply(
+    
+    1:nrow(specs), function(i) with(
+      
+      specs, return(
+        
+        emm[[i]]$emmeans %>%
+          as_tibble() %>%
+          `colnames<-`( c("group", "mod", "Est", "SE", "df", "low.CL", "upp.CL") ) %>%
+          mutate(y = outcome[i], x = exposure[i], m = moderator[i], .before = 1) %>%
+          mutate( Est = paste0( rprint(Est,3),"\n[", rprint(low.CL,3),", ",rprint(upp.CL,3),"]" ) ) %>%
+          select(y, x, m, mod, group, Est)
         
       )
     )
-  )
+  ) %>% reduce(full_join)
   
-  # prepare the table
-  tab <- left_join(
+  # extract contrasts
+  comp <- lapply(
     
-    # extract ANOVA-like tables
-    specs, lapply(
+    X = 1:nrow(specs),
+    FUN = function(i) with(
       
-      1:nrow(specs),
-      function(i) with(
+      specs, return(
         
-        specs,
-        joint_tests( fits[[ paste0(outcome[i]," ~ ",exposure[i]," | ",moderator[i]) ]] ) %>%
-          filter(`model term` == term[i] ) %>% # keep only the causal estimate
-          mutate(outcome = outcome[i], .before = 1) # add outcome variable for later glueing
+        emm[[i]]$contrasts %>%
+          as_tibble() %>% select( 1:5, (ncol(.)-1):ncol(.) ) %>%
+          `colnames<-`( c("contrast", "mod", "Comparison", "SE", "df", "test. stat.", "p value") ) %>%
+          mutate(y = outcome[i], x = exposure[i], m = moderator[i], .before = 1)
         
       )
       
-    ) %>%
-      
-      # tidy it up
-      reduce(full_join) %>%
-      rename("term" = "model term"),
+    )
     
-    # pull specifications and results to a single file
-    by = c("outcome", "term")
-    
-  ) %>%
-    
-    # finish it
-    select(outcome, exposure, moderator, Chisq, F.ratio, df1, df2, p.value) %>% # keep variables of interest
-    mutate(
-      
-      # format variables of interest
-      variable = factor(
+  ) %>% reduce(full_join)
   
-        sapply(1:nrow(.), function(i) unique( sets[grepl(outcome[i], sets$Y), "outcome"] ) ),
-        levels = c("Cognition", "Affect", "cPA"),
-        ordered = T
-
-      ),
-      Chisq = if_else(is.na(Chisq), "-", rprint(Chisq, 3) ),
-      F.ratio = rprint(F.ratio, 3),
-      df1 = as.character(df1),
-      df2 = if_else(df2 == Inf, "-", as.character(df2) ),
-      sig = if_else(p.value < .05, "*", ""),
-      p.value = zerolead(p.value)
-
-    ) %>%
-
-    relocate(variable, .before = 1) %>%
-    arrange(variable)
+  # prepare tables for with main/simple effects
+  tab <- lapply(
+    
+    X = set_names( unique(est$x) ),
+    FUN = function(i) est %>%
+      
+      filter(x == i) %>% # keep only predictor of interest
+      pivot_wider( values_from = Est, names_from = group, names_prefix = paste0(i," = ") ) %>%
+      left_join( comp, by = c("x","y","m","mod") ) %>% # add statistical comparisons
+      
+      # format variables
+      mutate(
+        Variable = factor(
+          
+          sapply(1:nrow(.), function(i) unique( sets[grepl(y[i], sets$Y), "outcome"] ) ),
+          levels = c("Cognition", "Affect", "cPA"),
+          ordered = T
+          
+        ),
+        sig = if_else(`p value` < .05, "*", ""),
+        m = if_else(mod == "overall", "", paste0(m," = ",mod) ),
+        across( all_of(c("Comparison", "SE", "test. stat.")), ~ rprint(.x, 3) ),
+        `p value` = zerolead(`p value`)
+      ) %>%
+      
+      # final formatting touches
+      select(-mod) %>%
+      relocate(Variable, .before = 1) %>%
+      rename("Moderator" = "m", "Contrast" = "contrast")
+    
+  )
+  
+  # prepare height and width values
+  dims <- matrix(
+    
+    data = c(12.5, 11.5, 12.5, 10.5, 3.5, 2.5),
+    ncol = 2,
+    dimnames = list(x = names(tab), y = c("width","height") )
+    
+  )
   
   # save if called for & return the table
-  if(save == T) {
+  if(save == T) for( x in names(tab) ) {
     
-    jpeg("results_table.jpg", units = "in", width = 7.5, height = 7, res = 300)
-    grid.table(tab, theme = ttheme_default(), rows = NULL)
+    jpeg( paste0("results_table_",x,".jpg"), units = "in", width = dims[x, "width"], height = dims[x, "height"], res = 300)
+    grid.table(tab[[x]], theme = ttheme_default(), rows = NULL)
     dev.off()
     
   }
   
+  # print the result
   return(tab)
   
 }

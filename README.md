@@ -10,9 +10,11 @@ with adjustment sets derived from causal assumptions depicted in the following D
 
 ![](DAG.jpg)
 
-Results are presented in the following table:
+Results are presented in the following tables for midlife PA, current PA and Education respectively:
 
-![](results_table.jpg)
+![](results_table_mPA.jpg)
+![](results_table_cPA.jpg)
+![](results_table_Education.jpg)
 
 ## Transparency & Reproducibility
 
