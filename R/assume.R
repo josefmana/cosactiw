@@ -82,7 +82,7 @@ make_dag <- function(plot = T) {
 
 
 # table outcomes, exposures and adjustment sets ----
-adjustment_table <- function(DAG) data.frame(
+adjustment_table <- function(DAG, estimands = "ATC") data.frame(
   
   outcome = c( rep("Cognition",4), rep("Affect",3), "cPA" ),
   exposure = c(
@@ -119,7 +119,7 @@ adjustment_table <- function(DAG) data.frame(
     Y = case_when(
       
       outcome == "Cognition" ~ "{MMSE, FAQ, SA, Z_SA}",
-      outcome == "Affect" ~ "{GDS15, GAI}",
+      outcome == "Affect" ~ "{GDS15, GAI, Depr, Anx}",
       outcome == "cPA" ~ "{cPA}"
       
     ),
@@ -130,6 +130,7 @@ adjustment_table <- function(DAG) data.frame(
       false = paste0( exposure," * ",moderator," * ",set2equation(adjustment_set, bracket = T) )
     ),
     term = if_else( is.na(moderator), exposure, paste0(exposure,":",moderator) ),
-    matching = paste0( exposure," ~ ",set2equation(adjustment_set, bracket = F) )
+    matching = paste0( exposure," ~ ",set2equation(adjustment_set, bracket = F) ),
+    estimand = ifelse(length(estimands) == 1, rep(estimands, count(.) ), estimands)
     
   )

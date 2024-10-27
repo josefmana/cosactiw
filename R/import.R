@@ -58,13 +58,27 @@ import_data <- function(file, sheet) read.xlsx(here("_raw",file), sheet = sheet)
         Marital_status == 4 ~ "Non-married" #"Divorced"
       )
     ),
+    Depr = factor(
+      if_else(
+        condition = GDS15 > 5,
+        true = 1,
+        false = 0
+      )
+    ),
+    Anx = factor(
+      if_else(
+        condition = GAI > 10,
+        true = 1,
+        false = 0
+      )
+    ),
     Total_MA = `Total-mental-activities`
   ) %>%
   
   # keep re-formatted variables
   select(
     ID, mPA, Cosactiw, Age, Education,
-    SA, cPA, Z_SA, MMSE, GDS15, GAI, FAQ, Total_MA, Health,
-    Profession, Status
+    SA, cPA, Z_SA, MMSE, GDS15, GAI, FAQ, Depr, Anx,
+    Total_MA, Health, Profession, Status
   )
 
