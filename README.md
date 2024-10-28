@@ -10,18 +10,20 @@ with adjustment sets derived from causal assumptions depicted in the following D
 
 ![](DAG.jpg)
 
-Estimates were computed via G-computation of weighted least squares GLMs with propensity scores weights based on logistic
-regression of the exposure on the covariates. Results are presented in the following tables for midlife PA, current PA and Education respectively:
+Estimates comprise of a set of marginalised means and their comparisons from GLMs regressing the outcome on exposure and
+adjustement set derived from the DAG above. Interactions of exposure and all adjustement set variable were included whereas
+interactions between adjustment sets. The results are presented for midlife-PA, current-PA and Education as exposures of
+interest respectively:
 
-![](tab_mPA_causal.jpg)
-![](tab_cPA_causal.jpg)
-![](tab_Education_causal.jpg)
+![](tab_mPA_adjusted.jpg)
+![](tab_cPA_adjusted.jpg)
+![](tab_Education_adjusted.jpg)
 
-These can be contrasted against estimates of otherwise equivalent GLMs with no covariates or weighting:
+These can be contrasted against estimates of otherwise equivalent GLMs with no covariates:
 
-![](tab_mPA_descriptive.jpg)
-![](tab_cPA_descriptive.jpg)
-![](tab_Education_descriptive.jpg)
+![](tab_mPA_unadjusted.jpg)
+![](tab_cPA_unadjusted.jpg)
+![](tab_Education_unadjusted.jpg)
 
 ## Transparency & Reproducibility
 

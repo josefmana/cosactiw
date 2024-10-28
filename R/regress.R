@@ -18,141 +18,6 @@ rprint <- function(x, d=2) sprintf( paste0("%.",d,"f"), round(x, d) )
 zerolead <- function(x, d = 3) ifelse( x < .001, "< .001", sub("0","", rprint(x, d) ) )
 remove_brackets <- function(x) sub("{", "", sub("}", "", x, fixed = T), fixed = T)
 
-# compute predictions ----
-model_predictions <- function(model, variables, trans = NULL) avg_predictions(
-  
-  model,
-  variables = variables,
-  wts = "weights", # will not affect descriptive models' predictions
-  transform = trans
-  
-) %>%
-  
-  as.matrix() %>%
-  as_tibble()
-
-# compute marginal means for a set of models ----
-compute_means <- function(models, specifications) lapply(
-  
-  set_names( names(models) ),
-  function(t) {
-    
-    # prepare specifications of models to be used
-    model_specs <- subset(specifications, model_type == t)
-    
-    # loop through models
-    lapply(
-      
-      1:nrow(model_specs),
-      function(i) with(
-        
-        model_specs, model_predictions(
-          
-          model = models[[t]][[paste0(outcome[i]," ~ ",exposure[[i]]," | ",moderator[i])]],
-          if (moderator[i] == 1) variables = exposure[i] else variables = c(exposure[i], moderator[i]),
-          if ( outcome[i] %in% c("FAQ","GDS15","GAI") ) trans = function(x) (exp(x)-1) else trans = NULL
-          
-        ) %>% mutate(
-          
-          y = outcome[i], x = exposure[i], m = moderator[i],
-          .before = 1
-          
-        )
-        
-      )
-    ) %>%
-      
-      reduce(full_join) %>%
-      mutate(
-        across( all_of( c("estimate","p.value","s.value","conf.low","conf.high") ), as.numeric ),
-        estimate = rprint(estimate, 2),
-        Est = paste0(estimate,"\n[", rprint(conf.low, 2),", ",rprint(conf.high, 2),"]"),
-        mod = case_when(m == "cPA" ~ cPA, m == "Education" ~ Education)
-      )
-  }
-)
-
-
-# compute contrast results ----
-g_computation <- function(model, nd, y, mod, comp, trans = NULL, int = F) avg_comparisons(
-
-  model = model,
-  newdata = nd,
-  variables = y,
-  by = mod,
-  vcov = ~ subclass,
-  wts = "weights", # does not affect descriptive models
-  comparison = comp,
-  transform = unlist( ifelse( is.null(trans), list(NULL), list(trans) ) ),
-  hypothesis = unlist( ifelse( int == T, list("revpairwise"), list(NULL) ) )
-
-) %>%
-
-  as.matrix() %>%
-  as_tibble()
-
-
-# compare means from g-computation ----
-compare_means <- function(models, specifications, data) lapply(
-  
-  set_names( names(models) ),
-  function(t) {
-    
-    # prepare specifications of models to be used
-    model_specs <- subset(specifications, model_type == t)
-    
-    # loop through models
-    lapply(
-      
-      1:nrow(model_specs),
-      function(i) with(
-        
-        model_specs, g_computation(
-          
-          # model
-          model = models[[t]][[paste0(outcome[i]," ~ ",exposure[[i]]," | ",moderator[i])]],
-          
-          # data
-          if (t == "descriptive") nd = data[[exposure[i]]]
-          else if (exposure[i] == "mPA") nd = subset(data[[exposure[i]]], mPA == "NANOK")
-          else if (exposure[i] == "cPA") nd = subset(data[[exposure[i]]], cPA == 0)
-          else if (exposure[i] == "Education") nd = subset(data[[exposure[i]]], Education == "lower"),
-          
-          # hypothesis
-          if (exposure[i] == "mPA") y = list(mPA = "revpairwise")
-          else if (exposure[i] == "cPA") y = list(cPA = "pairwise")
-          else if (exposure[i] == "Education") y = list(Education = "pairwise"),
-          
-          # other specification
-          if (moderator[i] == 1) mod = F else mod = moderator[i], # moderator if any
-          if (likelihood[i] == "binomial") comp = "lnratioavg" else comp = "differenceavg", # type of comparison
-          if (likelihood[i] == "binomial") trans = "exp" else trans = NULL, # transformation
-          int = F # calculate interaction contrasts (int = T) or simple effect contrasts (int = F)
-          
-        ) %>% mutate(
-          
-          y = outcome[i], x = exposure[i], m = moderator[i],
-          .before = 1
-          
-        )
-        
-      )
-    ) %>%
-      
-      reduce(full_join) %>%
-      select( -starts_with("predicted") ) %>%
-      mutate(
-        across(all_of( c("estimate","std.error","statistic","p.value","s.value","conf.low","conf.high") ), as.numeric),
-        across(starts_with("conf"), rprint),
-        across(all_of( c("std.error","statistic","s.value") ), rprint),
-        across( where(is.factor), as.character ),
-        #p.value = zerolead(p.value),
-        estimate = if_else(estimate < 100, rprint(estimate, 2), "≥ 100"),
-        mod = case_when(m == "cPA" ~ cPA)
-      )
-  }
-)
-
 
 # model specifications ----
 model_specs <- function(table) lapply(
@@ -167,60 +32,114 @@ model_specs <- function(table) lapply(
       exposure = table[i, "exposure"],
       moderator = ifelse( is.na( table[i, "moderator"] ), "1", table[i, "moderator"] ),
       term = table[i , "term"],
-      estimand = table[i, "estimand"],
       likelihood = case_when(
         y %in% c("MMSE","FAQ","Z_SA","GDS15","GAI") ~ "gaussian",
-        y %in% c("SA","cPA","Depr","Anx") ~ "binomial"
+        y %in% c("SA","cPA","Depr","Anx") ~ "quasibinomial"
       ),
-      causal = paste0( y," ~ ",table[i, "X"] ), # formula for causal models
-      descriptive = paste0( y," ~ ",table[i, "term"] ) # formula for descriptive models
-
+      adjusted = paste0( y," ~ ",table[i, "X"] ), # formula for causal/adjusted models
+      unadjusted = paste0( y," ~ ",table[i, "term"] ) # formula for descriptive/unadjusted models
+      
     )
-
+    
   ) %>% do.call( rbind.data.frame, . )
-
+  
 ) %>%
   
   do.call( rbind.data.frame, . ) %>%
-  pivot_longer( cols = c("causal", "descriptive"), names_to = "model_type", values_to = "formula" ) %>%
-  mutate( estimand = if_else(model_type == "causal", estimand, "-") )
+  pivot_longer( cols = c("adjusted", "unadjusted"), names_to = "estimate", values_to = "formula" )
+
+
+# compute marginal means  ----
+compute_means <- function(fits, specs) lapply(
+  
+  X = set_names(x = 1:nrow(specs), nm = names(fits) ),
+  FUN = function(i) with(
+    
+    specs, return(
+      
+      emmeans(
+        
+        object = fits[[ paste0(outcome[i]," ~ ",exposure[i]," | ",moderator[i]) ]],
+        specs = formula( paste0("pairwise ~ ",exposure[i]) ),
+        by = moderator[i],
+        type = "response"
+        
+      )
+    )
+  )
+  
+)
+
+
+# extract means from a set of emmeans objects ----
+extract_means <- function(means, specs) lapply(
+  
+  1:nrow(specs), function(i) with(
+    
+    specs, return(
+      
+      means[[i]]$emmeans %>%
+        as_tibble() %>%
+        `colnames<-`( c("group", "mod", "Est", "SE", "df", "low.CL", "upp.CL") ) %>%
+        mutate(y = outcome[i], x = exposure[i], m = moderator[i], .before = 1) %>%
+        mutate( Est = paste0( rprint(Est,3),"\n[", rprint(low.CL,3),", ",rprint(upp.CL,3),"]" ) ) %>%
+        select(y, x, m, mod, group, Est)
+      
+    )
+  )
+) %>% reduce(full_join)
+
+
+# compare means the expected marginal means ----
+compare_means <- function(means, specs) lapply(
+  
+  X = 1:nrow(specs),
+  FUN = function(i) with(
+    
+    specs, return(
+      
+      means[[i]]$contrasts %>%
+        as_tibble() %>% select( 1:5, (ncol(.)-1):ncol(.) ) %>%
+        `colnames<-`( c("contrast", "mod", "Comparison", "SE", "df", "test. stat.", "p value") ) %>%
+        mutate(y = outcome[i], x = exposure[i], m = moderator[i], .before = 1)
+      
+    )
+    
+  )
+  
+) %>% reduce(full_join)
 
 
 # fit regressions ----
-model_fit <- function(data_list, specs, log = T, contr = T) {
+fit_models <- function(data, specs, log = T, contr = T) {
   
-  # pre-process
-  for ( i in names(data_list) ) {
-    
-    # log transform if called for
-    if(log == T) data_list[[i]] <- data_list[[i]] %>%
-        mutate(
-          across(
-            all_of( c("FAQ","GDS15","GAI") ),
-            ~ log(.x+1)
-          )
+  # log transform if called for
+  if(log == T) data <- data %>%
+      mutate(
+        across(
+          all_of( c("FAQ","GDS15","GAI") ),
+          ~ log(.x+1)
         )
-    
-    # do orthogonal contrasts if called for
-    if(contr == T) for( j in names(data_list[[i]]) ) if ( is.factor(data_list[[i]][ ,j]) ) {
-
-      contrasts(data_list[[i]][ ,j]) <- contr.sum( length( levels(data_list[[i]][ ,j]) ) )
-
+      )
+  
+  # do orthogonal contrasts if called for
+  if(contr == T) {
+    for( i in names(data) ) {
+      if ( is.factor(data[ , i]) ) contrasts(data[ , i]) <- contr.sum( length( levels(data[ , i]) ) )
     }
-    
-    # centre age
-    data_list[[i]]$Age <- as.numeric( scale(data_list[[i]]$Age, center = T, scale = F) )
-    
   }
+  
+  # centre age
+  data$Age <- as.numeric( scale(data$Age, center = T, scale = F) )
   
   # compute regressions
   lapply(
     
-    set_names( x = c("descriptive", "causal") ),
+    set_names( x = paste0(c("un", ""),"adjusted") ),
     function(t) {
       
       # prepare specific specification file
-      model_specs <- subset(specs, model_type == t)
+      model_specs <- subset(specs, estimate == t)
       
       # loop through all models to be fitted
       lapply(
@@ -237,8 +156,7 @@ model_fit <- function(data_list, specs, log = T, contr = T) {
             glm(
               formula = as.formula(formula[i]),
               family = likelihood[i],
-              data = data_list[[exposure[i]]],
-              if (t == "causal") weights = weights
+              data = data
             )
             
           )
@@ -254,7 +172,7 @@ model_fit <- function(data_list, specs, log = T, contr = T) {
 
 
 # model diagnostics ----
-model_diagnose <- function(model_list) lapply(
+diagnose_models <- function(model_list) lapply(
   
   set_names( names(model_list) ),
   function(type) lapply(
@@ -271,64 +189,52 @@ model_diagnose <- function(model_list) lapply(
 
 
 # extract results of statistical tests ----
-stat_test <- function(fits, specs, data, sets) {
+stat_test <- function(fits, specs, sets) {
   
   # extract & compare marginal means
-  marg_means <- compute_means(fits, specs)
-  contrasts <- compare_means(fits, specs, data)
+  emm <- lapply( set_names( names(fits) ), function(i) compute_means( fits[[i]], subset(specs, estimate == i) ) )
+  est <- lapply( set_names( names(emm) ), function(i) extract_means( emm[[i]], subset(specs, estimate == i) ) )
+  comp <- lapply( set_names( names(emm) ), function(i) compare_means( emm[[i]], subset(specs, estimate == i) ) )
   
   # prepare a table for main/simple effects
   tabs <- lapply(
     
     set_names( names(fits) ),
-    function(t)
+    function(t) lapply(
       
-      lapply(
+      X = set_names( unique(est[[t]]$x) ),
+      FUN = function(i) est[[t]] %>%
         
-        X = set_names( unique(specs$exposure) ),
-        FUN = function(i) marg_means[[t]] %>%
+        filter(x == i) %>% # keep only predictor of interest
+        pivot_wider( values_from = Est, names_from = group, names_prefix = paste0(i," = ") ) %>%
+        left_join( comp[[t]], by = c("x","y","m","mod") ) %>% # add statistical comparisons
+        
+        # format variables
+        mutate(
           
-          filter(x == i) %>% # keep only predictor of interest
-          select( all_of( c("y", "x", "m", i, "mod", "Est") ) ) %>%
-          pivot_wider( values_from = "Est", names_from = i, names_prefix = paste0(i," = ") ) %>%
+          Variable = factor(
+            
+            sapply(1:nrow(.), function(i) unique( sets[grepl(y[i], sets$Y), "outcome"] ) ),
+            levels = c("Cognition", "Affect", "cPA"),
+            ordered = T
+            
+          ),
           
-          # add statistical comparisons
-          left_join(
-            contrasts[[t]] %>% select(y, x, m, contrast, estimate, std.error, statistic, p.value, s.value, mod),
-            by = c("x","y","m","mod")
-          ) %>%
-          
-          # format variables
-          mutate(
-            Variable = factor(
-              
-              sapply(1:nrow(.), function(i) unique( sets[grepl(y[i], sets$Y), "outcome"] ) ),
-              levels = c("Cognition", "Affect", "cPA"),
-              ordered = T
-              
-            ),
-            sig. = if_else(p.value < .05, "*", ""),
-            p.value = zerolead(p.value),
-            m = if_else( is.na(mod), "", paste0(m," = ",mod) )
-          ) %>%
-          
-          # final formatting touches
-          select(-mod) %>%
-          relocate(Variable, .before = 1) %>%
-          relocate(s.value, .before = p.value) %>%
-          rename(
-            "Moderator" = "m",
-            "Contrast" = "contrast",
-            "Est." = "estimate",
-            "SE" = "std.error",
-            "Stat." = "statistic",
-            "p value" = "p.value",
-            "s value" = "s.value"
-          )
-      
+          sig. = if_else(`p value` < .05, "*", ""),
+          m = if_else(mod == "overall", "", paste0(m," = ",mod) ),
+          across( all_of( c("Comparison", "SE", "test. stat.") ), ~ rprint(.x, 3) ),
+          `p value` = zerolead(`p value`)
+        
+        ) %>%
+        
+        # final formatting touches
+        select(-mod) %>%
+        relocate(Variable, .before = 1) %>%
+        rename("Moderator" = "m", "Contrast" = "contrast")
+       
     )
   )
-
+  
   # print the result
   return(tabs)
   
@@ -340,7 +246,7 @@ save_tables <- function(tabs, type) {
   # prepare height and width values
   dims <- matrix(
     
-    data = c(13.5, 11.1, 13, 13.5, 4.5, 2.5),
+    data = c(12.5, 11.3, 12.5, 13.5, 4.5, 2.5),
     ncol = 2,
     dimnames = list(x = names(tabs[[type]]), y = c("width","height") )
     

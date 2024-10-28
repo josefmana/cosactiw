@@ -14,7 +14,7 @@ import_data <- function(file, sheet) read.xlsx(here("_raw",file), sheet = sheet)
   mutate(
     mPA = factor(
       x = Study,
-      levels = c("COSACTIW","NANOK")
+      labels = c("COSACTIW","NANOK")
     ),
     Cosactiw = factor(
       if_else(
