@@ -13,9 +13,15 @@ with adjustment sets derived from causal assumptions depicted in the following D
 Estimates were computed via G-computation of weighted least squares GLMs with propensity scores weights based on logistic
 regression of the exposure on the covariates. Results are presented in the following tables for midlife PA, current PA and Education respectively:
 
-![](results_table_mPA.jpg)
-![](results_table_cPA.jpg)
-![](results_table_Education.jpg)
+![](tab_mPA_causal.jpg)
+![](tab_cPA_causal.jpg)
+![](tab_Education_causal.jpg)
+
+These can be contrasted against estimates of otherwise equivalent GLMs with no covariates or weighting:
+
+![](tab_mPA_descriptive.jpg)
+![](tab_cPA_descriptive.jpg)
+![](tab_Education_descriptive.jpg)
 
 ## Transparency & Reproducibility
 

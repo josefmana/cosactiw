@@ -41,6 +41,10 @@ list(
   tar_target( specs, model_specs(adjustment_sets) ), # model specifications table
   tar_target( models, model_fit(processed_data, specs, log = T, contr = T) ), # fit the models
   tar_target( diagnostics, model_diagnose(models) ), # extract model diagnostics
-  tar_target( test_results, stat_test(models, specs, processed_data, adjustment_sets, save = "causal") ) # extract results of statistical models
+  
+  # extracting & saving the results ----
+  tar_target( test_results, stat_test(models, specs, processed_data, adjustment_sets) ), # extract results of statistical models
+  tar_target( tables_descriptive, save_tables(test_results, "descriptive") ),
+  tar_target( tables_causal, save_tables(test_results, "causal") )
 
 )

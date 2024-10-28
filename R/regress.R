@@ -271,7 +271,7 @@ model_diagnose <- function(model_list) lapply(
 
 
 # extract results of statistical tests ----
-stat_test <- function(fits, specs, data, sets, save = "causal") {
+stat_test <- function(fits, specs, data, sets) {
   
   # extract & compare marginal means
   marg_means <- compute_means(fits, specs)
@@ -328,28 +328,49 @@ stat_test <- function(fits, specs, data, sets, save = "causal") {
       
     )
   )
+
+  # print the result
+  return(tabs)
   
-  # save if called for & return the table
-  if(save != F) for( x in names(tabs[[save]]) ) {
+}
+
+# save resulting tables as .jpeg ----
+save_tables <- function(tabs, type) {
+  
+  # prepare height and width values
+  dims <- matrix(
     
-    # prepare height and width values
-    dims <- matrix(
+    data = c(13.5, 11.1, 13, 13.5, 4.5, 2.5),
+    ncol = 2,
+    dimnames = list(x = names(tabs[[type]]), y = c("width","height") )
+    
+  )
+  
+  # do the saving
+  for( x in names(tabs[[type]]) ) {
+    
+    # prepare the file
+    jpeg(
+      paste0("tab_",x,"_",type,".jpg"),
+      units = "in",
+      width = dims[x, "width"],
+      height = dims[x, "height"],
+      res = 300
+    )
+    
+    # plot the table
+    grid.table(
       
-      data = c(13.5, 11.5, 12.5, 13.5, 4.5, 2.5),
-      ncol = 2,
-      dimnames = list(x = names(tabs[[save]]), y = c("width","height") )
+      tabs[[type]][[x]],
+      theme = ttheme_default(),
+      rows = NULL
       
     )
     
-    # save them
-    jpeg( paste0("results_table_",x,".jpg"), units = "in", width = dims[x, "width"], height = dims[x, "height"], res = 300)
-    grid.table(tabs[[save]][[x]], theme = ttheme_default(), rows = NULL)
+    # save it
     dev.off()
     
   }
-  
-  # print the result
-  return(tabs)
   
 }
 
