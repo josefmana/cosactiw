@@ -20,7 +20,7 @@ remove_brackets <- function(x) sub("{", "", sub("}", "", x, fixed = T), fixed = 
 
 
 # model specifications ----
-model_specs <- function(table) lapply(
+model_specs <- function(table, faq = "count") lapply(
   
   1:nrow(table),
   function(i) lapply(
@@ -33,8 +33,10 @@ model_specs <- function(table) lapply(
       moderator = ifelse( is.na( table[i, "moderator"] ), "1", table[i, "moderator"] ),
       term = table[i , "term"],
       likelihood = case_when(
-        y %in% c("MMSE","FAQ","Z_SA","GDS15","GAI") ~ "gaussian",
-        y %in% c("SA","cPA","Depr","Anx") ~ "quasibinomial"
+        y %in% c("MMSE","Z_SA","GDS15","GAI") ~ "gaussian",
+        y %in% c("SA","cPA","Depr","Anx") ~ "binomial",
+        y == "FAQ" & faq == "continuous" ~ "gaussian",
+        y == "FAQ" & faq == "count" ~ "binomial"
       ),
       adjusted = paste0( y," ~ ",table[i, "X"] ), # formula for causal/adjusted models
       unadjusted = paste0( y," ~ ",table[i, "term"] ) # formula for descriptive/unadjusted models
@@ -111,13 +113,13 @@ compare_means <- function(means, specs) lapply(
 
 
 # fit regressions ----
-fit_models <- function(data, specs, log = T, contr = T) {
+fit_models <- function(data, specs, log_1 = c("GDS15","GAI"), contr = T) {
   
-  # log transform if called for
-  if(log == T) data <- data %>%
+  # log transform variables if called for
+  if ( !is.null(log_1) ) data <- data %>%
       mutate(
         across(
-          all_of( c("FAQ","GDS15","GAI") ),
+          all_of(log_1),
           ~ log(.x+1)
         )
       )
@@ -131,6 +133,9 @@ fit_models <- function(data, specs, log = T, contr = T) {
   
   # centre age
   data$Age <- as.numeric( scale(data$Age, center = T, scale = F) )
+  
+  # mutate FAQ if it is binomial
+  if (c( unique( specs[specs$outcome == "FAQ", "likelihood"] ) ) == "binomial") data$FAQ = data$FAQ / 10
   
   # compute regressions
   lapply(
@@ -156,7 +161,8 @@ fit_models <- function(data, specs, log = T, contr = T) {
             glm(
               formula = as.formula(formula[i]),
               family = likelihood[i],
-              data = data
+              data = data,
+              weights = unlist( ifelse( outcome[i] == "FAQ" & likelihood[i] == "binomial", list( rep(10, nrow(data)) ), list(NULL) ) )
             )
             
           )

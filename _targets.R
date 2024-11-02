@@ -31,13 +31,13 @@ list(
   tar_target( data, import_data(file = "COSACTIW_NANOK_pro-jamovi.xlsx", sheet = "cosactiw+nanok") ), # read data
   
   # regressing the outcomes on exposures ----
-  tar_target( specs, model_specs(adjustment_sets) ), # model specifications table
-  tar_target( models, fit_models(data, specs, log = T, contr = T) ), # fit the models
+  tar_target( specs, model_specs(adjustment_sets, faq = "continuous") ), # model specifications table
+  tar_target( models, fit_models(data, specs, log_1 = NULL, contr = T) ), # fit the models
   tar_target( diagnostics, diagnose_models(models) ), # extract model diagnostics
   
   # extracting & saving the results ----
   tar_target( test_results, stat_test(models, specs, adjustment_sets) ), # extract results of statistical models
-  tar_target( tables_descriptive, save_tables(test_results, "unadjusted") ),
-  tar_target( tables_causal, save_tables(test_results, "adjusted") )
+  tar_target( tables_unadjusted, save_tables(test_results, "unadjusted") ),
+  tar_target( tables_adjusted, save_tables(test_results, "adjusted") )
 
 )

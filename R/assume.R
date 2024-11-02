@@ -24,24 +24,23 @@ make_dag <- function(plot = T) {
   # set-up a data frame with node labels and coordinates
   nms <- data.frame(
     
-    name = c("S1", "S2", "S3", "Age", "Education", "mPA", "cPA", "Cognition", "Affect"),
-    label = c( rep("S",3), "Age", "Educ.", "m-PA", "c-PA", "Cogn.", "Affect"),
-    x = c(rep(1,2), 3, 3, 1, 1, 2, 3, 2),
-    y = c(0, 4, 0, 1, 3, 1, 1, 3, 3)
+    name = c("S", "Age", "Education", "mPA", "cPA", "Cognition", "Affect"),
+    label = c("S", "Age", "Educ.", "m-PA", "c-PA", "Cogn.", "Affect"),
+    x = c(2, 3, 2, 1, 1, 3, 2),
+    y = c(0, 1, 1, 1, 3, 3, 3)
     
   ) %>% mutate( colour = if_else(name %in% paste0("S",1:3), "black", "white") )
   
-  # prepare the DAG
+  # prepare the DAG
   dag <- dagify(
     
     Affect ~ mPA + cPA + Age + Education,
     Cognition ~ mPA + cPA + Education + Affect + Age,
     cPA ~ mPA + Age + Education,
-    mPA ~ Education + S1,
-    Education ~ S2,
-    Age ~ S3,
+    mPA ~ Education,
+    S ~ mPA + Education + Age,
     
-    latent = c("S1", "S2", "S3"),
+    latent = "S",
     coords = nms[ , c("name","x","y")]
     
   ) %>%
@@ -49,8 +48,8 @@ make_dag <- function(plot = T) {
     tidy_dagitty() %>%
     arrange(name) %>%
     mutate(
-      selection = if_else(name %in% paste0("S",1:3), "1", "0"),
-      curve = if_else( is.na(direction), NA, if_else(name == "Education" & to == "Cognition", 0.60, 0) )
+      selection = if_else(name == "S", "1", "0"),
+      curve = if_else( is.na(direction), NA, if_else(name == "cPA" & to == "Cognition", 0.60, 0) )
     )
   
   # basic DAG
@@ -112,7 +111,8 @@ adjustment_table <- function(DAG) data.frame(
         
         select(set) %>%
         unique() %>%
-        unlist(use.names = F)
+        unlist(use.names = F) %>%
+        mutate()
       
     ),
     
