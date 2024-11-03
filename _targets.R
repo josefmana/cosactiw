@@ -25,6 +25,7 @@ list(
   
   # causal assumptions ----
   tar_target( dag, make_dag(plot = F) ),
+  tar_target( dag_plot, make_dag(plot = T) ),
   tar_target( adjustment_sets, adjustment_table(dag) ),
   
   # read & format the data ----
@@ -36,8 +37,6 @@ list(
   tar_target( diagnostics, diagnose_models(models) ), # extract model diagnostics
   
   # extracting & saving the results ----
-  tar_target( test_results, stat_test(models, specs, adjustment_sets) ), # extract results of statistical models
-  tar_target( tables_unadjusted, save_tables(test_results, "unadjusted") ),
-  tar_target( tables_adjusted, save_tables(test_results, "adjusted") )
+  tar_target( test_results, stat_test(models, specs, adjustment_sets) ) # extract results of statistical models
 
 )

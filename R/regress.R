@@ -74,7 +74,7 @@ compute_means <- function(fits, specs) lapply(
 
 
 # extract means from a set of emmeans objects ----
-extract_means <- function(means, specs) lapply(
+extract_means <- function(means, specs, digits = 2) lapply(
   
   1:nrow(specs), function(i) with(
     
@@ -84,7 +84,7 @@ extract_means <- function(means, specs) lapply(
         as_tibble() %>%
         `colnames<-`( c("group", "mod", "Est", "SE", "df", "low.CL", "upp.CL") ) %>%
         mutate(y = outcome[i], x = exposure[i], m = moderator[i], .before = 1) %>%
-        mutate( Est = paste0( rprint(Est,3),"\n[", rprint(low.CL,3),", ",rprint(upp.CL,3),"]" ) ) %>%
+        mutate( Est = paste0( rprint(Est,digits),"\n(", rprint(SE,digits),")" ) ) %>%
         select(y, x, m, mod, group, Est)
       
     )
@@ -162,7 +162,13 @@ fit_models <- function(data, specs, log_1 = c("GDS15","GAI"), contr = T) {
               formula = as.formula(formula[i]),
               family = likelihood[i],
               data = data,
-              weights = unlist( ifelse( outcome[i] == "FAQ" & likelihood[i] == "binomial", list( rep(10, nrow(data)) ), list(NULL) ) )
+              weights = unlist(
+                ifelse(
+                  test = outcome[i] == "FAQ" & likelihood[i] == "binomial",
+                  yes = list( rep(10, nrow(data) ) ),
+                  no = list(NULL)
+                )
+              )
             )
             
           )
@@ -228,13 +234,15 @@ stat_test <- function(fits, specs, sets) {
           
           sig. = if_else(`p value` < .05, "*", ""),
           m = if_else(mod == "overall", "", paste0(m," = ",mod) ),
-          across( all_of( c("Comparison", "SE", "test. stat.") ), ~ rprint(.x, 3) ),
+          Comparison = paste0( rprint(Comparison, 2),"\n(", rprint(SE, 2),")" ),
+          #across( all_of( c("Comparison", "SE") ), ~ rprint(.x, 2) ),
+          `test. stat.` = rprint(`test. stat.`, 3),
           `p value` = zerolead(`p value`)
         
         ) %>%
         
         # final formatting touches
-        select(-mod) %>%
+        select(-mod, -SE) %>%
         relocate(Variable, .before = 1) %>%
         rename("Moderator" = "m", "Contrast" = "contrast")
        
@@ -243,46 +251,6 @@ stat_test <- function(fits, specs, sets) {
   
   # print the result
   return(tabs)
-  
-}
-
-# save resulting tables as .jpeg ----
-save_tables <- function(tabs, type) {
-  
-  # prepare height and width values
-  dims <- matrix(
-    
-    data = c(12.5, 11.3, 12.5, 13.5, 4.5, 2.5),
-    ncol = 2,
-    dimnames = list(x = names(tabs[[type]]), y = c("width","height") )
-    
-  )
-  
-  # do the saving
-  for( x in names(tabs[[type]]) ) {
-    
-    # prepare the file
-    jpeg(
-      paste0("tab_",x,"_",type,".jpg"),
-      units = "in",
-      width = dims[x, "width"],
-      height = dims[x, "height"],
-      res = 300
-    )
-    
-    # plot the table
-    grid.table(
-      
-      tabs[[type]][[x]],
-      theme = ttheme_default(),
-      rows = NULL
-      
-    )
-    
-    # save it
-    dev.off()
-    
-  }
   
 }
 

@@ -58,21 +58,18 @@ make_dag <- function(plot = T) {
     ggplot() +
     aes(x = x, y = y, xend = xend, yend = yend, shape = selection, colour = selection) +
     
-    geom_dag_point(size = 20, fill = "white") +
+    geom_dag_point(size = 20, fill = "white", stroke = 1) +
     geom_dag_edges_arc( curvature = na.omit(dag$data$curve), arrow = grid::arrow(length = grid::unit(11, "pt"), type = "open") ) +
     scale_shape_manual( values = c(`1` = 22, `0` = 21) ) +
     scale_colour_manual( values = c("white", "black") ) +
     geom_dag_text(
       label = arrange(nms, name)$label,
       color = "black",
-      size = 5
+      size = 5.33
     ) +
     
     theme_dag() +
     theme(legend.position = "none")
-  
-  # save it
-  ggsave(plot = dag0, filename = here("DAG.jpg"), dpi = 300, width = 9, height = 6)
   
   # return it
   if(plot == T) return(dag0) else return(dag)
@@ -111,8 +108,7 @@ adjustment_table <- function(DAG) data.frame(
         
         select(set) %>%
         unique() %>%
-        unlist(use.names = F) %>%
-        mutate()
+        unlist(use.names = F)
       
     ),
     

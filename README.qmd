@@ -1,0 +1,96 @@
+---
+title: "Effect of Midlife Physical Activity on Cognition in Elderly Ladies"
+author: "Josef Mana"
+echo: false
+warning: false
+message: false
+date: "`r Sys.Date()`"
+title-block-banner: true
+format:
+  html: 
+    self-contained: true
+    code-fold: true
+    toc: true
+    toc-depth: 3
+---
+
+```{r}
+#| label: envir
+
+source("_targets_packages.R")
+
+```
+
+# Assumptions
+
+The analysis consists of a set of GLMs (logistic for binary variables, least squares Gaussian regressions for continuous variables) with adjustment sets derived from causal assumptions depicted in the following DAG:
+
+```{r}
+#| label: fig-dag
+#| fig-cap: "Directed acyclic graph (DAG) depicting causal assumptions about relations of variables under investigation. The 'S' node represents the **s**election process that is automatically conditioned on in the sapmle (which is being indicated by a square)."
+
+targets::tar_read(dag_plot)
+library(targets)
+library(gt)
+
+```
+
+
+# Analysis & Summary of Results
+
+Estimates comprise of a set of marginalised means and their comparisons from GLMs regressing the outcome on the exposure and adjustement set derived from @fig-dag. Interactions of the exposure and all adjustement set variable were included whereas interactions between adjustment sets' variables were not included. The results are presented for midlife-PA as the exposure and several different (types of) outcomes:
+
+```{r}
+#| label: tbl-adj
+#| tbl-cap: "Adjusted estimates of the effect of midlife physical activity (m-PA) on cognitive, affective, and physical outcomes of interest. Under the hypothesis presented in @fig-dag, these estimates represent unbiased estimates of total causal effect in the current sample."
+#| tbl-colwidths: [1.0, 1.0, 0.7, 0.7, 1.0, 1.0, 0.5, 0.8, 1.0, 0.5]
+
+tar_read(test_results)$adjusted$mPA |>
+  mutate( Variable = if_else(Variable == "cPA", "Physical Activity", Variable) ) |>
+  
+  gt(groupname_col = c("Variable","y") ) |>
+  cols_align(align = "center") |>
+  cols_label(x ~ "Predictor")
+
+```
+
+These can be contrasted against estimates of otherwise equivalent GLMs with no covariates (i.e., unadjusted estimates of association between exposure and outcome):
+
+```{r}
+#| label: tbl-unadj
+#| tbl-cap: "Unadjusted estimates of the effect of midlife physical activity (m-PA) on cognitive, affective, and physical outcomes of interest. Under the hypothesis presented in @fig-dag, these estimates are biased estimates of total causal effect due to confounding by common causes."
+#| tbl-colwidths: [1.0, 1.0, 0.7, 0.7, 1.0, 1.0, 0.5, 0.8, 1.0, 0.5]
+
+tar_read(test_results)$unadjusted$mPA |>
+  mutate( Variable = if_else(Variable == "cPA", "Physical Activity", Variable) ) |>
+  
+  gt(groupname_col = c("Variable","y") ) |>
+  cols_align(align = "center") |>
+  cols_label(x ~ "Predictor")
+
+```
+
+# Transparency & Reproducibility
+
+The [renv](https://rstudio.github.io/renv/) package was used to create reproducible environment for the project.
+To set-up R environment for reproduction of our results, run:
+
+```
+#install.packages("renv")
+renv::restore()
+```
+
+The [targets](https://docs.ropensci.org/targets/) package was used to create a reproducible analysis pipeline.
+The data are not being shared for the time being. If you managed to get them from the main authors, put them into
+the `_raw/` folder and run the analyses using the following code:
+
+```
+#install.packages("targets")
+targets::tar_make()
+```
+
+The current pipeline looks as follows:
+
+```{r}
+targets::tar_visnetwork()
+```
