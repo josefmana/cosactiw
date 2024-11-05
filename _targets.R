@@ -10,6 +10,8 @@ tar_option_set( packages = c(
   "tidyverse", # for data wrangling
   "ggdag", # for DAG drawing
   "ggraph", # for advance DAG/ggplot operations
+  "ggtext", #nfor adding text to plots
+  "patchwork", # for arranging plots
   "openxlsx", # for data reading
   "performance", # for regression diagnostics 
   "emmeans", # for models' marginal means estimation
@@ -37,6 +39,7 @@ list(
   tar_target( diagnostics, diagnose_models(models) ), # extract model diagnostics
   
   # extracting & saving the results ----
-  tar_target( test_results, stat_test(models, specs, adjustment_sets) ) # extract results of statistical models
+  tar_target( results, stat_test(models, specs, adjustment_sets) ), # extract results of statistical models
+  tar_target( results_plot, plot_results(data, results, specs, save = T) ) # save as a plot
 
 )

@@ -12,14 +12,14 @@
 # RQ3.1) How strong is the total causal effect of midlife-PA on current-PA in our sample?
 
 
-# utility functions ----
+# UTILITY FUNCTIONS ----
 
 rprint <- function(x, d=2) sprintf( paste0("%.",d,"f"), round(x, d) )
 zerolead <- function(x, d = 3) ifelse( x < .001, "< .001", sub("0","", rprint(x, d) ) )
 remove_brackets <- function(x) sub("{", "", sub("}", "", x, fixed = T), fixed = T)
 
 
-# model specifications ----
+# MODEL SPECIFICATIONS ----
 model_specs <- function(table, faq = "count") lapply(
   
   1:nrow(table),
@@ -51,7 +51,7 @@ model_specs <- function(table, faq = "count") lapply(
   pivot_longer( cols = c("adjusted", "unadjusted"), names_to = "estimate", values_to = "formula" )
 
 
-# compute marginal means  ----
+# COMPUTE MARGINAL MEANS  ----
 compute_means <- function(fits, specs) lapply(
   
   X = set_names(x = 1:nrow(specs), nm = names(fits) ),
@@ -73,7 +73,7 @@ compute_means <- function(fits, specs) lapply(
 )
 
 
-# extract means from a set of emmeans objects ----
+# EXTRACT MEANS ----
 extract_means <- function(means, specs, digits = 2) lapply(
   
   1:nrow(specs), function(i) with(
@@ -92,7 +92,7 @@ extract_means <- function(means, specs, digits = 2) lapply(
 ) %>% reduce(full_join)
 
 
-# compare means the expected marginal means ----
+# COMPARE MEANS ----
 compare_means <- function(means, specs) lapply(
   
   X = 1:nrow(specs),
@@ -112,7 +112,7 @@ compare_means <- function(means, specs) lapply(
 ) %>% reduce(full_join)
 
 
-# fit regressions ----
+# FIT REGRESSIONS ----
 fit_models <- function(data, specs, log_1 = c("GDS15","GAI"), contr = T) {
   
   # log transform variables if called for
@@ -179,78 +179,6 @@ fit_models <- function(data, specs, log_1 = c("GDS15","GAI"), contr = T) {
     }
 
   ) %>% return()
-  
-}
-
-
-# model diagnostics ----
-diagnose_models <- function(model_list) lapply(
-  
-  set_names( names(model_list) ),
-  function(type) lapply(
-    
-    model_list[[type]],
-    function(fit) tryCatch(
-      
-      check_model(fit),
-      error=function(e) e
-      
-    )
-  )
-)
-
-
-# extract results of statistical tests ----
-stat_test <- function(fits, specs, sets) {
-  
-  # extract & compare marginal means
-  emm <- lapply( set_names( names(fits) ), function(i) compute_means( fits[[i]], subset(specs, estimate == i) ) )
-  est <- lapply( set_names( names(emm) ), function(i) extract_means( emm[[i]], subset(specs, estimate == i) ) )
-  comp <- lapply( set_names( names(emm) ), function(i) compare_means( emm[[i]], subset(specs, estimate == i) ) )
-  
-  # prepare a table for main/simple effects
-  tabs <- lapply(
-    
-    set_names( names(fits) ),
-    function(t) lapply(
-      
-      X = set_names( unique(est[[t]]$x) ),
-      FUN = function(i) est[[t]] %>%
-        
-        filter(x == i) %>% # keep only predictor of interest
-        pivot_wider( values_from = Est, names_from = group, names_prefix = paste0(i," = ") ) %>%
-        left_join( comp[[t]], by = c("x","y","m","mod") ) %>% # add statistical comparisons
-        
-        # format variables
-        mutate(
-          
-          Variable = factor(
-            
-            sapply(1:nrow(.), function(i) unique( sets[grepl(y[i], sets$Y), "outcome"] ) ),
-            levels = c("Cognition", "Affect", "cPA"),
-            ordered = T
-            
-          ),
-          
-          sig. = if_else(`p value` < .05, "*", ""),
-          m = if_else(mod == "overall", "", paste0(m," = ",mod) ),
-          Comparison = paste0( rprint(Comparison, 2),"\n(", rprint(SE, 2),")" ),
-          #across( all_of( c("Comparison", "SE") ), ~ rprint(.x, 2) ),
-          `test. stat.` = rprint(`test. stat.`, 3),
-          `p value` = zerolead(`p value`)
-        
-        ) %>%
-        
-        # final formatting touches
-        select(-mod, -SE) %>%
-        relocate(Variable, .before = 1) %>%
-        rename("Moderator" = "m", "Contrast" = "contrast")
-       
-    )
-  )
-  
-  # print the result
-  return(tabs)
   
 }
 

@@ -1,7 +1,7 @@
 # This script is supposed to pre-process data for the analysis for the brief report.
 
 
-# extract data ----
+# EXTRACT DATA ----
 import_data <- function(file, sheet) read.xlsx(here("_raw",file), sheet = sheet) %>%
   
   # keep variables of interest

@@ -3,7 +3,7 @@
 # for a subsequent statistical analysis
 
 
-# function for changing set to equation syntax ----
+# CHANGE SETS TO EQUATIONS ----
 set2equation <- function(x, bracket = F) sapply(
   
   X = 1:length(x),
@@ -18,7 +18,7 @@ set2equation <- function(x, bracket = F) sapply(
   
 )
 
-# prepare & save the DAG ----
+# PREPARE & SAVE A DAG ----
 make_dag <- function(plot = T) {
   
   # set-up a data frame with node labels and coordinates
@@ -77,7 +77,7 @@ make_dag <- function(plot = T) {
 }
 
 
-# table outcomes, exposures and adjustment sets ----
+# ADJUSTMENT SETS  ----
 adjustment_table <- function(DAG) data.frame(
   
   outcome = c( rep("Cognition",4), rep("Affect",3), "cPA" ),
