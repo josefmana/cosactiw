@@ -51,67 +51,6 @@ model_specs <- function(table, faq = "count") lapply(
   pivot_longer( cols = c("adjusted", "unadjusted"), names_to = "estimate", values_to = "formula" )
 
 
-# COMPUTE MARGINAL MEANS  ----
-compute_means <- function(fits, specs) lapply(
-  
-  X = set_names(x = 1:nrow(specs), nm = names(fits) ),
-  FUN = function(i) with(
-    
-    specs, return(
-      
-      emmeans(
-        
-        object = fits[[ paste0(outcome[i]," ~ ",exposure[i]," | ",moderator[i]) ]],
-        specs = formula( paste0("pairwise ~ ",exposure[i]) ),
-        by = moderator[i],
-        type = "response"
-        
-      )
-    )
-  )
-  
-)
-
-
-# EXTRACT MEANS ----
-extract_means <- function(means, specs, digits = 2) lapply(
-  
-  1:nrow(specs), function(i) with(
-    
-    specs, return(
-      
-      means[[i]]$emmeans %>%
-        as_tibble() %>%
-        `colnames<-`( c("group", "mod", "Est", "SE", "df", "low.CL", "upp.CL") ) %>%
-        mutate(y = outcome[i], x = exposure[i], m = moderator[i], .before = 1) %>%
-        mutate( Est = paste0( rprint(Est,digits),"\n(", rprint(SE,digits),")" ) ) %>%
-        select(y, x, m, mod, group, Est)
-      
-    )
-  )
-) %>% reduce(full_join)
-
-
-# COMPARE MEANS ----
-compare_means <- function(means, specs) lapply(
-  
-  X = 1:nrow(specs),
-  FUN = function(i) with(
-    
-    specs, return(
-      
-      means[[i]]$contrasts %>%
-        as_tibble() %>% select( 1:5, (ncol(.)-1):ncol(.) ) %>%
-        `colnames<-`( c("contrast", "mod", "Comparison", "SE", "df", "test. stat.", "p value") ) %>%
-        mutate(y = outcome[i], x = exposure[i], m = moderator[i], .before = 1)
-      
-    )
-    
-  )
-  
-) %>% reduce(full_join)
-
-
 # FIT REGRESSIONS ----
 fit_models <- function(data, specs, log_1 = c("GDS15","GAI"), contr = T) {
   

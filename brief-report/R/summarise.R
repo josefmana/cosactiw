@@ -18,6 +18,69 @@ diagnose_models <- function(model_list) lapply(
 )
 
 
+# COMPUTE MARGINAL MEANS  ----
+compute_means <- function(fits, specs) lapply(
+  
+  X = set_names(x = 1:nrow(specs), nm = names(fits) ),
+  FUN = function(i) with(
+    
+    specs, return(
+      
+      emmeans(
+        
+        object = fits[[ paste0(outcome[i]," ~ ",exposure[i]," | ",moderator[i]) ]],
+        specs = formula( paste0("pairwise ~ ",exposure[i]) ),
+        by = moderator[i],
+        type = "response"
+        
+      )
+    )
+  )
+  
+)
+
+
+# EXTRACT MEANS ----
+extract_means <- function(means, specs, digits = 2) lapply(
+  
+  1:nrow(specs), function(i) with(
+    
+    specs, return(
+      
+      means[[i]]$emmeans %>%
+        as_tibble() %>%
+        `colnames<-`( c("group", "mod", "Est", "SE", "df", "low.CL", "upp.CL") ) %>%
+        mutate(y = outcome[i], x = exposure[i], m = moderator[i], .before = 1) %>%
+        mutate( Est = paste0( rprint(Est,digits),"\n(", rprint(SE,digits),")" ) ) %>%
+        select(y, x, m, mod, group, Est)
+      
+    )
+  )
+) %>% reduce(full_join)
+
+
+# COMPARE MEANS ----
+compare_means <- function(means, specs) lapply(
+  
+  X = 1:nrow(specs),
+  FUN = function(i) with(
+    
+    specs, return(
+      
+      # use the following to get confidence intervals:
+      # means[[i]] %>% confint()
+      means[[i]]$contrasts %>%
+        as_tibble() %>% select( 1:5, (ncol(.)-1):ncol(.) ) %>%
+        `colnames<-`( c("contrast", "mod", "Comparison", "SE", "df", "test. stat.", "p value") ) %>%
+        mutate(y = outcome[i], x = exposure[i], m = moderator[i], .before = 1)
+      
+    )
+    
+  )
+  
+) %>% reduce(full_join)
+
+
 # TABLE OF RESULTS ----
 stat_test <- function(fits, specs, sets) {
   
@@ -181,7 +244,7 @@ plot_results <- function(data, stats, specs, save = T) {
     
     ggplot() +
     aes(x = mPA, y = Score, group = Outcome) +
-    geom_point(position = position_jitter(width = .15, height = .033), alpha = .33, size = 3.3) +
+    geom_point(position = position_jitter(width = .15, height = .033), alpha = .25, size = 3.3) +
     geom_smooth(method = "glm", se = F, method.args = list(family = "binomial"), colour = "red3", linewidth = 1.33) +
     scale_x_discrete( expand = expansion(add = .25 ) ) +
     scale_y_continuous(breaks = c(0,1), labels = c(0,1), name = NULL) + 
