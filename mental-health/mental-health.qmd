@@ -1,0 +1,138 @@
+---
+title: "Effect of Midlife Physical Activity on Cognition in Elderly Ladies"
+author: "Josef Mana"
+echo: false
+warning: false
+message: false
+date: "`r Sys.Date()`"
+title-block-banner: true
+format:
+  html: 
+    self-contained: true
+    code-fold: true
+    toc: true
+    toc-depth: 3
+---
+
+```{r}
+#| label: envir
+
+source("_targets_packages.R")
+
+```
+
+```{r}
+#| label: func
+
+# function for an APA-style table from gt()
+apa <- function(x) {
+  
+  gt( x, groupname_col = c("Variable","y") ) |>
+    tab_options(
+      
+      table.border.top.color = "white",
+      heading.title.font.size = px(16),
+      column_labels.border.top.width = 3,
+      column_labels.border.top.color = "black",
+      column_labels.border.bottom.width = 3,
+      column_labels.border.bottom.color = "black",
+      table_body.border.bottom.color = "black",
+      table.border.bottom.color = "white",
+      table.width = pct(100),
+      table.background.color = "white"
+      
+    ) |>
+    cols_align(align="center") |>
+    tab_style(
+      
+      style = list(
+        cell_borders(
+          sides = c("top", "bottom"),
+          color = "white",
+          weight = px(1)
+        ),
+        cell_text(
+          align="center"
+        ),
+        cell_fill(color = "white", alpha = NULL)
+        ),
+      
+      locations = cells_body(
+        columns = everything(),
+        rows = everything()
+      )
+
+    ) |>
+    opt_align_table_header(align = "left") |>
+    cols_label(x ~ "Predictor")
+
+}
+
+```
+
+# Assumptions
+
+The analysis consists of a set of GLMs (logistic for binary variables, least squares Gaussian regressions for continuous variables) with adjustment sets derived from causal assumptions depicted in the following DAG:
+
+```{r}
+#| label: fig-dag
+#| fig-cap: "Directed acyclic graph (DAG) depicting causal assumptions about relations of variables under investigation. The 'S' node represents the **s**election process that is automatically conditioned on in the sapmle (which is being indicated by a square)."
+
+targets::tar_read(dag_plot)
+library(targets)
+library(gt)
+
+```
+
+
+# Analysis & Summary of Results
+
+Estimates comprise of a set of marginalised means and their comparisons from GLMs regressing the outcome on the exposure and adjustement set derived from @fig-dag. Interactions of the exposure and all adjustement set variable were included whereas interactions between adjustment sets' variables were not included. The results are presented for midlife-PA as the exposure and several different (types of) outcomes:
+
+```{r}
+#| label: tbl-adj
+#| tbl-cap: "Adjusted estimates of the effect of midlife physical activity (m-PA) on cognitive, affective, and physical outcomes of interest. Under the hypothesis presented in @fig-dag, these estimates represent unbiased estimates of total causal effect in the current sample."
+
+tar_read(results)$adjusted$mPA |>
+  mutate( Variable = if_else(Variable == "cPA", "Physical Activity", Variable) ) |>
+  apa()
+
+```
+
+These can be contrasted against estimates of otherwise equivalent GLMs with no covariates (i.e., unadjusted estimates of association between exposure and outcome):
+
+```{r}
+#| label: tbl-unadj
+#| tbl-cap: "Unadjusted estimates of the effect of midlife physical activity (m-PA) on cognitive, affective, and physical outcomes of interest. Under the hypothesis presented in @fig-dag, these estimates are biased estimates of total causal effect due to confounding by common causes."
+
+tar_read(results)$unadjusted$mPA |>
+  mutate( Variable = if_else(Variable == "cPA", "Physical Activity", Variable) ) |>
+  apa()
+  
+
+```
+
+# Transparency & Reproducibility
+
+The [renv](https://rstudio.github.io/renv/) package was used to create reproducible environment for the project.
+To set-up R environment for reproduction of our results, run:
+
+```r
+#install.packages("renv")
+renv::restore()
+```
+
+The [targets](https://docs.ropensci.org/targets/) package was used to create a reproducible analysis pipeline.
+The data are not being shared for the time being. If you managed to get them from the main authors, put them into
+the `_raw/` folder and run the analyses using the following code:
+
+```r
+#install.packages("targets")
+targets::tar_make()
+```
+
+The current pipeline looks as follows:
+
+```{r}
+targets::tar_visnetwork()
+```
