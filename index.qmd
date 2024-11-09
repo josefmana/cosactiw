@@ -1,0 +1,12 @@
+---
+pagetitle: "COgnitive SuperAging in aCTIve Women (COSACTIW)"
+author: "Josef Mana"
+css: index.css
+editor: source
+---
+
+# COSACTIW
+
+::: {.hero-buttons}
+[Brief report](/docs/mental-health/index.html){.btn-action-primary .btn-action .btn .btn-success .btn-lg role="button"}
+::: 
