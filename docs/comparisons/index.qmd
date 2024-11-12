@@ -19,6 +19,9 @@ format:
 
 source("_targets_packages.R")
 
+library(targets)
+library(gt)
+
 ```
 
 ```{r}
@@ -78,9 +81,7 @@ The analysis consists of a set of GLMs (logistic for binary variables, least squ
 #| label: fig-dag
 #| fig-cap: "Directed acyclic graph (DAG) depicting causal assumptions about relations of variables under investigation. The 'S' node represents the **s**election process that is automatically conditioned on in the sapmle (which is being indicated by a square)."
 
-targets::tar_read(dag_plot)
-library(targets)
-library(gt)
+tar_read(dag_plot)
 
 ```
 

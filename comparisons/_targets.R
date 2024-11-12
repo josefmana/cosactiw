@@ -10,7 +10,7 @@ tar_option_set( packages = c(
   "tidyverse", # for data wrangling
   "ggdag", # for DAG drawing
   "ggraph", # for advance DAG/ggplot operations
-  "ggtext", #nfor adding text to plots
+  "ggtext", # for adding text to plots
   "patchwork", # for arranging plots
   "openxlsx", # for data reading
   "performance", # for regression diagnostics 

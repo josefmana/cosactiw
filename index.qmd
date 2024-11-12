@@ -1,12 +1,32 @@
 ---
-pagetitle: "COgnitive SuperAging in aCTIve Women (COSACTIW)"
+title: "COgnitive SuperAging in aCTIve Women (COSACTIW)"
 author: "Josef Mana"
-css: index.css
-editor: source
+date: "`r Sys.Date()`"
+title-block-banner: true
+echo: false
+warning: false
+message: false
+format:
+  html: 
+    self-contained: true
+    code-fold: true
+    toc: true
+    toc-depth: 3
 ---
 
-# COSACTIW
+```{r}
+#| label: envir
 
-::: {.hero-buttons}
-[Brief report](/docs/mental-health/index.html){.btn-action-primary .btn-action .btn .btn-success .btn-lg role="button"}
-::: 
+library(targets)
+
+```
+
+### [Midlife physical activity effects on mental health in advanced age](/docs/comparisons/index.html)
+
+A study examining the effect of midlife physical activity (operationalised as membership to a sample of lifelong physically active/COSACTIW or general population/NANOK women) and indexes of mental health in elderly ladies. A set of generalised linear models with adjustment sets derived from causal assumptions represented by a directed acyclic graph imply that high level of midlife physical activity in our sample causes lower anxiety (assessed by GAI) and depressive symptoms (assessed by GDS-15), and higher functional independence (assessed by FAQ) compared to an average level of midlife physical activity. We did not detect a statistically clear effect of midlife physical activity on composite cognitive Z-score or SuperAging.
+
+![](/comparisons/_figures/data-and-stats.jpg)
+
+### [Correlates of SuperAging in physically active elderly ladies](/docs/correlates/index.html)
+
+### [Association between attitudes towards physical activity and physical fitness](/docs/attitudes/index.html)
