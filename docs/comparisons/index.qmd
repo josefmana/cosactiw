@@ -17,10 +17,14 @@ format:
 ```{r}
 #| label: envir
 
-source("_targets_packages.R")
-
+library(here)
 library(targets)
 library(gt)
+
+source( here("comparisons","_targets_packages.R") )
+
+tar_path <- here("comparisons","_targets")
+tar_config_set(store = tar_path)
 
 ```
 
@@ -113,27 +117,3 @@ tar_read(results)$unadjusted$mPA |>
 
 ```
 
-# Transparency & Reproducibility
-
-The [renv](https://rstudio.github.io/renv/) package was used to create reproducible environment for the project.
-To set-up R environment for reproduction of our results, run:
-
-```r
-#install.packages("renv")
-renv::restore()
-```
-
-The [targets](https://docs.ropensci.org/targets/) package was used to create a reproducible analysis pipeline.
-The data are not being shared for the time being. If you managed to get them from the main authors, put them into
-the `_raw/` folder and run the analyses using the following code:
-
-```r
-#install.packages("targets")
-targets::tar_make()
-```
-
-The current pipeline looks as follows:
-
-```{r}
-targets::tar_visnetwork()
-```
