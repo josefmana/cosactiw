@@ -1,13 +1,18 @@
 # This script is supposed to pre-process data for the analysis for the brief report.
 
 
+# LIST DATA FILE ----
+data_file <- function(folder, file) here(folder, file)
+
 # EXTRACT DATA ----
-import_data <- function(file, sheet) read.xlsx(here("_raw",file), sheet = sheet) %>%
+import_data <- function(file, sheet) read.xlsx(file, sheet = sheet) %>%
   
   # keep variables of interest
   select(
     1, Study, Age, `Education-2-cat`, Type_of_prevailing_occupation_during_life, Marital_status, # predictors
-    `SA_New-BNT`, `Regular-PA`, Z_SA, MMSE, GDS15, GAI, FAQ, `Total-mental-activities`, Health # outcomes
+    `SA_New-BNT`, `Regular-PA`, MMSE, GDS15, GAI, FAQ, `Total-mental-activities`, Health, # outcomes
+    Z_RAVLT_PVLT_delayed_recall, Z_TMT_B_uds, Z_BNT_new, Z_VF_uds, # SuperAging variables
+    RAVLT_delayed_recall # for SA re-calculation
   ) %>%
   
   # re-format
@@ -31,9 +36,21 @@ import_data <- function(file, sheet) read.xlsx(here("_raw",file), sheet = sheet)
     ),
     SA = factor(
       case_when(
-        `SA_New-BNT` == 1 ~ 1,
-        `SA_New-BNT` == 0 ~ 0
+        # lower education COSACTIW SA
+        `SA_New-BNT` == 1 & Study == "COSACTIW" &`Education-2-cat` == 1 & RAVLT_delayed_recall > 9 ~ 1,
+        `SA_New-BNT` == 1 & Study == "COSACTIW" &`Education-2-cat` == 1 & RAVLT_delayed_recall < 10 ~ 0,
+        # lower education COSACTIW SA
+        `SA_New-BNT` == 1 & Study == "COSACTIW" &`Education-2-cat` == 2 & RAVLT_delayed_recall > 10 ~ 1,
+        `SA_New-BNT` == 1 & Study == "COSACTIW" &`Education-2-cat` == 2 & RAVLT_delayed_recall < 11 ~ 0,
+        # COSACTIW non-SA remain unchanged
+        `SA_New-BNT` == 0 ~ 0,
+        # NANOK (no change)
+        Study == "NANOK" ~ `SA_New-BNT`,
       )
+    ),
+    Z_SA = rowMeans(
+      x = across( all_of( starts_with("Z_") ) ),
+      na.rm = T
     ),
     cPA = factor(
       if_else(

@@ -225,7 +225,12 @@ plot_results <- function(data, stats, specs, save = T) {
     geom_violin(width = 1) +
     geom_boxplot(width = 0.2, alpha = 0.8) +
     stat_summary(fun = mean, geom = "point", shape = 20, size = 5, colour = "red3", fill = "red3") +
-    facet_wrap( ~ Outcome, ncol = 1, scales = "free_y") +
+    facet_wrap(
+      facets = ~ Outcome,
+      ncol = 1,
+      scales = "free_y",
+      labeller = as_labeller( c(FAQ = "FAQ", GAI = "GAI", GDS15 = "GDS-15", MMSE = "MMSE", Z_SA = "Cognition CS") )
+    ) +
     theme_bw() +
     theme( panel.grid = element_blank() ) +
     geom_richtext(
@@ -248,7 +253,12 @@ plot_results <- function(data, stats, specs, save = T) {
     geom_smooth(method = "glm", se = F, method.args = list(family = "binomial"), colour = "red3", linewidth = 1.33) +
     scale_x_discrete( expand = expansion(add = .25 ) ) +
     scale_y_continuous(breaks = c(0,1), labels = c(0,1), name = NULL) + 
-    facet_wrap(~ Outcome, ncol = 1) +
+    facet_wrap(
+      facets = ~ Outcome,
+      ncol = 1,
+      scales = "free_y",
+      labeller = as_labeller( c(Anx = "Anxiety risk", cPA = "cPA", Depr = "Depression risk", SA = "SA") )
+    ) +
     theme_bw() +
     theme( panel.grid = element_blank() ) +
     geom_richtext(
