@@ -4,6 +4,29 @@
 # LIST DATA FILE ----
 data_file <- function(folder, file) here(folder, file)
 
+
+# SCALED SCORES FOR RAVLT ----
+ravlt_ss <- function(raw) case_when(
+  
+  # based on Tab. 7 from Frydrychova et al. (2018, https://psycnet.apa.org/record/2018-63633-003)
+  raw == 0 ~ 3,
+  raw == 1 ~ 4,
+  raw == 2 ~ 5,
+  raw == 3 ~ 6,
+  raw == 4 ~ 7,
+  raw == 5 ~ 8,
+  raw == 6 ~ 9,
+  raw %in% c(7,8) ~ 10,
+  raw == 9 ~ 11,
+  raw == 10 ~ 12,
+  raw == 11 ~ 13,
+  raw == 12 ~ 14,
+  raw == 13 ~ 15,
+  raw %in% c(14,15) ~ 16
+  
+)
+
+
 # EXTRACT DATA ----
 import_data <- function(file, sheet) read.xlsx(file, sheet = sheet) %>%
   
@@ -33,6 +56,12 @@ import_data <- function(file, sheet) read.xlsx(file, sheet = sheet) %>%
       levels = 1:2,
       labels = c("lower","higher"),
       ordered = T
+    ),
+    Z_RAVLT_PVLT_delayed_recall = case_when(
+      # for NANOK retain the number
+      # for COSACTIW re-calculate according to Tab. 7 from Frydrychova et al. (2018, https://psycnet.apa.org/record/2018-63633-003)
+      Study == "NANOK" ~ Z_RAVLT_PVLT_delayed_recall,
+      Study == "COSACTIW" ~ ( ravlt_ss(Z_RAVLT_PVLT_delayed_recall) - (16.734 - 0.103 * Age + if_else(Education == "higher", 0.998, 0) + 0.904) ) / 2.86133
     ),
     SA = factor(
       case_when(

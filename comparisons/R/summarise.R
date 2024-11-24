@@ -174,7 +174,7 @@ plot_results <- function(data, stats, specs, save = T) {
     rename("Outcome" = "y") %>%
     mutate(
       x = "COSACTIW",
-      y = c(25.35, 4.6, 1, -1.1, 12.2, 15.3, 1, 1, .24, 24.3, 3.7, .86, -1.75, 9.7, 12.3, .86, .86, .1)
+      y = c(25.35, 4.6, 1, -1.1, 12.2, 15.3, 1, 1, .24, 24.3, 3.7, .86, -1.92, 9.7, 12.3, .86, .86, .1)
     )
   
   # prepare data for plotting
