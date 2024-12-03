@@ -31,8 +31,8 @@ list(
   tar_target( adjustment_sets, adjustment_table(dag) ),
   
   # read & format the data ----
-  tar_target( datafile, data_file("_raw", "COSACTIW_NANOK_pro-jamovi-oprav.xlsx"), format = "file" ), # path to the data file
-  tar_target( data, import_data(datafile, sheet = "cosactiw+nanok") ), # read data
+  tar_target( datafile, data_file("_raw", "COSACTIW_NANOK_pro-jamovi-oprav.xlsx"), format = "file"), # path to the data file
+  tar_target( data, import_data(datafile, sheet = "cosactiw+nanok", norms = "table") ), # read data
   
   # regressing the outcomes on exposures ----
   tar_target( specs, model_specs(adjustment_sets, faq = "continuous") ), # model specifications table

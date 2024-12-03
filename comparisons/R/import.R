@@ -28,7 +28,7 @@ ravlt_ss <- function(raw) case_when(
 
 
 # EXTRACT DATA ----
-import_data <- function(file, sheet) read.xlsx(file, sheet = sheet) %>%
+import_data <- function(file, sheet, norms = "table") read.xlsx(file, sheet = sheet) %>%
   
   # keep variables of interest
   select(
@@ -57,11 +57,16 @@ import_data <- function(file, sheet) read.xlsx(file, sheet = sheet) %>%
       labels = c("lower","higher"),
       ordered = T
     ),
-    Z_RAVLT_PVLT_delayed_recall = case_when(
+    Z_RAVLT_PVLT_delayed_recall_regression = case_when(
       # for NANOK retain the number
       # for COSACTIW re-calculate according to Tab. 7 from Frydrychova et al. (2018, https://psycnet.apa.org/record/2018-63633-003)
       Study == "NANOK" ~ Z_RAVLT_PVLT_delayed_recall,
-      Study == "COSACTIW" ~ ( ravlt_ss(Z_RAVLT_PVLT_delayed_recall) - (16.734 - 0.103 * Age + if_else(Education == "higher", 0.998, 0) + 0.904) ) / 2.86133
+      Study == "COSACTIW" ~ ( ravlt_ss(RAVLT_delayed_recall) - (16.734 - 0.103 * Age + if_else(Education == "higher", 0.998, 0) + 0.904) ) / 2.86133
+    ),
+    Z_RAVLT_PVLT_delayed_recall = case_when(
+      # choose between normatibe tables vs regression norms
+      norms == "table" ~ Z_RAVLT_PVLT_delayed_recall,
+      norms == "regresion" ~ Z_RAVLT_PVLT_delayed_recall_regression
     ),
     SA = factor(
       case_when(
