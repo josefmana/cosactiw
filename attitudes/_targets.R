@@ -34,8 +34,8 @@ list(
   # diagnostic tables?
   
   # extract results ----
-  tar_target( table1, prepare_table(data, models, chisquares, variables) )
-  # pairwise comparisons table
-  # pairwise comparisons plot
+  tar_target( table1, prepare_table(data, models, chisquares, variables) ), # results of the omnibus tests
+  tar_target( table2, table_pairwise(models, variables) ), # pairwise comparisons table
+  tar_target( figure1, plot_pairwise(data, variables, save = T) )# pairwise comparisons plot
   
 )

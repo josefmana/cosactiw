@@ -23,7 +23,7 @@ zerolead <- function(x, .dec = 3, fortext = F) ifelse(
   
   test = fortext == T,
   yes = ifelse(x >= .001, paste0( "= ", sub("0.", ".", rprint(x, .dec), fixed = T) ), "< .001"),
-  no = ifelse(x >= .001, rprint(x, .dec), "< .001")
+  no = ifelse(x >= .001, sub("0.", ".", rprint(x, .dec), fixed = T), "< .001")
 
 )
 
@@ -213,7 +213,7 @@ compute_chisq <- function(.data, .variables) lapply(
 )
 
 
-# PREPARE TABLE WITH RESULTS ----
+# PREPARE TABLE WITH OMNIBUS TESTS RESULTS ----
 prepare_table <- function(.data, .models, .chisquares, .variables) {
   
   # descriptive part of the table
@@ -247,3 +247,65 @@ prepare_table <- function(.data, .models, .chisquares, .variables) {
   
 }
 
+
+# PREPARE TABLE WITH POST-HOC COMPARISONS RESULTS ----
+table_pairwise <- function(.models, .variables) lapply(
+  
+  set_names( names(.models) ),
+  function(i) tukey_hsd(.models[[i]]) %>%
+    
+    as.data.frame() %>%
+    mutate(
+      comp = paste0(group1," vs. ",group2),
+      Estimate = paste0( rprint(estimate,2)," [", rprint(conf.low,2),", ",rprint(conf.high,2),"]" ),
+      p.value = sapply(p.adj, function(p) zerolead(p, .dec = 3, fortext = F) )
+    ) %>%
+    select(comp, Estimate, p.value) %>%
+    pivot_wider( names_from = comp, names_glue = "{comp} - {.value}", values_from = c(Estimate, p.value) ) %>%
+    mutate(label = .variables$label[.variables$column == i], .before = 1)
+  
+) %>%
+  
+  reduce(full_join)
+
+
+# PREPARE PLOT WITH POST-HOC COMPARISONS ----
+plot_pairwise <- function(.data, .variables, save = F) {
+  
+  # keep only z-score variables
+  vars <- .variables[ grepl("(z-score)", .variables$label, fixed = T), ]
+  
+  # extract data for later processing
+  d0 <- .data %>%
+    select( PA_att, all_of(vars$column) ) %>%
+    pivot_longer(cols = -PA_att, names_to = "outcome", values_to = "value") %>%
+    mutate( lab = sapply(outcome, function(i) vars$label[vars$column == i], USE.NAMES = F) )
+  
+  # extract Tukey HSD statistical comparisons
+  stat.test <- d0 %>%
+    group_by(lab) %>%
+    tukey_hsd(value ~ PA_att) %>%
+    add_y_position() %>%
+    mutate(y.position = 1.25 * y.position + 0.5)
+  
+  # plot it
+  plt <- d0 %>%
+    ggviolin(x = "PA_att", y = "value", add = "boxplot") +
+    stat_pvalue_manual(stat.test, label = "p.adj", facet.by = "label", bracket.size = .2, tip.length = 0) +
+    labs(x = NULL, y = NULL) +
+    facet_wrap(~ lab, scales = "free_y") +
+    theme_bw(base_size = 14) +
+    theme( panel.grid = element_blank() )
+  
+  # save it if asked for
+  if (save == T) {
+    
+    if ( !dir.exists("_figures") ) dir.create("_figures")
+    ggsave(plot = plt, filename = here("_figures","Tukey_HSD.jpg"), dpi = 300, width = 13.3, height = 8.6)
+    
+  }
+  
+  # finish by returnig the plot
+  return(plt)
+  
+}
