@@ -1,5 +1,6 @@
+#
 # This script serves for summarising results of regression analyses done previously.
-
+#
 
 # MODEL DIAGNOSTICS ----
 diagnose_models <- function(model_list) lapply(

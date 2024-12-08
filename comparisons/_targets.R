@@ -13,6 +13,7 @@ tar_option_set( packages = c(
   "ggtext", # for adding text to plots
   "patchwork", # for arranging plots
   "openxlsx", # for data reading
+  "readxl", # for .xls reading
   "performance", # for regression diagnostics 
   "emmeans", # for models' marginal means estimation
   "gridExtra" # for saving tables as images
@@ -30,9 +31,17 @@ list(
   tar_target( dag_plot, make_dag(plot = T) ),
   tar_target( adjustment_sets, adjustment_table(dag) ),
   
+  # extract normative values for episodic memory ----
+  tar_target( pvlt_data, data_file("_raw", "PVLT_2012_NANOK_export_fin.xls - PVLT Czech.csv"), format = "file" ), # PVLT data
+  tar_target( pvlt_excl, data_file("_raw", "PVLT_2012_NANOK_export_fin.xls - vyřazení.csv"), format = "file" ), # PVLT excluded
+  tar_target( nanok_demo, data_file("_raw", "data_NANOK_2012-2013-2014_pro-Ondreje-Rydla_opr-MoCA.xls"), format = "file" ), # NANOK demography
+  tar_target( ravlt_norms, data_file("_raw", "ravlt_analyza.csv"), format = "file" ), # RAVLT data
+  tar_target( memory_thresholds, extract_thresholds(pvlt_data, pvlt_excl, nanok_demo, ravlt_norms) ), # extract memory thresholds startified by test and education level
+  tar_target( memory_norms, extract_thresholds(pvlt_data, pvlt_excl, nanok_demo, ravlt_norms, output = "norms") ), # extract memory task norms
+  
   # read & format the data ----
-  tar_target( datafile, data_file("_raw", "COSACTIW_NANOK_pro-jamovi-oprav.xlsx"), format = "file"), # path to the data file
-  tar_target( data, import_data(datafile, sheet = "cosactiw+nanok", norms = "table") ), # read data
+  tar_target( datafile, data_file("_raw", "COSACTIW_NANOK_pro-jamovi-oprav.xlsx"), format = "file" ), # path to the data file
+  tar_target( data, import_data(datafile, "cosactiw+nanok", memory_norms, memory_thresholds, "mean") ), # read data
   
   # regressing the outcomes on exposures ----
   tar_target( specs, model_specs(adjustment_sets, faq = "continuous") ), # model specifications table

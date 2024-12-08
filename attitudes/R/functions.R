@@ -266,7 +266,9 @@ table_pairwise <- function(.models, .variables) lapply(
   
 ) %>%
   
-  reduce(full_join)
+  reduce(full_join) %>%
+  relocate(`I am an athletic person vs. I enjoy movement - p.value`, .after = `I am an athletic person vs. I enjoy movement - Estimate`) %>%
+  relocate(`I am an athletic person vs. I exercised at least thrice a wk - p.value`, .after = `I am an athletic person vs. I exercised at least thrice a wk - Estimate`)
 
 
 # PREPARE PLOT WITH POST-HOC COMPARISONS ----
