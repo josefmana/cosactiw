@@ -175,7 +175,7 @@ plot_results <- function(data, stats, specs, save = T) {
     rename("Outcome" = "y") %>%
     mutate(
       x = "COSACTIW",
-      y = c(25.35, 4.6, 1, -1.1, 12.2, 15.3, 1, 1, .24, 24.3, 3.7, .86, -1.92, 9.7, 12.3, .86, .86, .1)
+      y = c(25.35, 4.6, 1, -1.22, 12.2, 15.3, 1, 1, .24, 24.3, 3.7, .86, -1.9, 9.7, 12.3, .86, .86, .1)
     )
   
   # prepare data for plotting
@@ -227,7 +227,7 @@ plot_results <- function(data, stats, specs, save = T) {
     geom_boxplot(width = 0.2, alpha = 0.8) +
     stat_summary(fun = mean, geom = "point", shape = 20, size = 5, colour = "red3", fill = "red3") +
     facet_wrap(
-      facets = ~ Outcome,
+      facets = ~ factor( Outcome, levels = c("GAI", "GDS15", "FAQ", "MMSE", "Z_SA") ), # factor to force order
       ncol = 1,
       scales = "free_y",
       labeller = as_labeller( c(FAQ = "FAQ", GAI = "GAI", GDS15 = "GDS-15", MMSE = "MMSE", Z_SA = "Cognition CS") )
@@ -255,7 +255,7 @@ plot_results <- function(data, stats, specs, save = T) {
     scale_x_discrete( expand = expansion(add = .25 ) ) +
     scale_y_continuous(breaks = c(0,1), labels = c(0,1), name = NULL) + 
     facet_wrap(
-      facets = ~ Outcome,
+      facets = ~ factor( Outcome, levels = c("Anx", "Depr", "cPA", "SA") ),
       ncol = 1,
       scales = "free_y",
       labeller = as_labeller( c(Anx = "Anxiety risk", cPA = "cPA", Depr = "Depression risk", SA = "SA") )

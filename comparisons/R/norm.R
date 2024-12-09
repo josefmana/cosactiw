@@ -55,7 +55,7 @@ extract_thresholds <- function(pvlt_data_file, pvlt_id_file, nanok_file, ravlt_f
     mutate(
       ID = as.numeric(Jméno), # for compatibility with NANOK, participant 1226p and 1247p were dropped as a result
       age = Věk,
-      raw = T7
+      raw = T9
     ) %>%
     select(ID, age, raw) %>%
     left_join(demo, by = "ID") %>% # add demographic variables (i.e., education level)
