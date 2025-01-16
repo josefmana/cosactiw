@@ -2,10 +2,6 @@
 # project from COSACTIW from data import to results visualisation.
 
 
-# READ DATA FILE ----
-read_data <- function(folder, file) here(folder, file)
-
-
 # PRINT ROUNDED NUMBERS ----
 rprint <- function(x, dec = 2) sprintf( paste0("%.",dec,"f"), round(x, dec) )
 
@@ -83,11 +79,20 @@ list_outcomes <- function() data.frame(
     "Education",
     "MMSE",
     "Waist_circumference",
+    "BMI",
+    "GDS15",
+    "GAI",
     paste0( "Chair_stand", c("","_z", "_level") ),
     paste0( "Arm_curl", c("", "_z", "_level") ),
     paste0( "Up_and_go", c("", "_z", "_level") ),
     paste0( "Two_min_step_test", c("", "_z", "_level") ),
-    "SFT_z_composite"
+    "SFT_z_composite",
+    "IPAQ_Walking_days",
+    "IPAQ_Walking_minutes_per_day",
+    "IPAQ_Moderate_activity_days",
+    "IPAQ_Moderate_activity_minutes_per_day",
+    "IPAQ_Vigorous_activity_days",
+    "IPAQ_Vigorous_activity_minutes_per_day"
   ),
   
   label = c(
@@ -95,22 +100,32 @@ list_outcomes <- function() data.frame(
     "Education (years)",
     "MMSE (range 0-30)",
     "Waist circumference (cm)",
+    "BMI (kg/m^2)",
+    "GDS-15 (range 0-15)",
+    "GAI (range 0- 20)",
     paste("Chair Stand", c("(# in 30 sec)", "(z-score)", "normative value"), sep = " "),
     paste("Arm Curl", c("(# in 30 sec)", "(z-score)", "normative value"), sep = " "),
     paste("8-Foot Up and Go", c("(sec)", "(z-score)", "normative value"), sep = " "),
     paste("2 min Step test", c("(# of steps)", "(z-score)", "normative value"), sep = " "),
-    "SFT (composite z-score)"
+    "SFT (composite z-score)",
+    "Walking (IPAQ, days of week)",
+    "Walking (IPAQ, minutes per day)",
+    "Moderate activity (IPAQ, days of week)",
+    "Moderate activity (IPAQ, minutes per day)",
+    "Vigorous activity (IPAQ, days of week)",
+    "Vigorous activity (IPAQ, minutes per day)"
   ),
   
   role = c(
-    rep("descriptor", 4),
-    rep("outcome", 13)
+    rep("descriptor", 7),
+    rep("primary outcome", 13),
+    rep("secondary outcome", 6)
   ),
   
   type = c(
-    rep("continuous", 4),
+    rep("continuous", 7),
     rep(c(rep("continuous", 2), "categorical"), 4),
-    "continuous"
+    rep("continuous", 7)
   )
   
 )
@@ -144,9 +159,21 @@ import_data <- function(file) read.xlsx(
   
   # keep only variables of interest
   select(
+    
     ID, PA_att, # identification and group (predictor) variables
-    Age, MMSE, Education, Waist_circumference, # descriptive variables
-    starts_with("Chair_stand"), starts_with("Arm_curl"), starts_with("Up_and_go"), starts_with("Two_min_step_test") # primary outcomes (SFT)
+    Age, MMSE, Education, Waist_circumference, BMI, GDS15, GAI, # descriptive variables
+    
+    # primary outcomes (SFT)
+    starts_with("Chair_stand"),
+    starts_with("Arm_curl"),
+    starts_with("Up_and_go"),
+    starts_with("Two_min_step_test"),
+    
+    # secondary outcomes
+    IPAQ_Walking_days,           IPAQ_Walking_minutes_per_day,
+    IPAQ_Moderate_activity_days, IPAQ_Moderate_activity_minutes_per_day,
+    IPAQ_Vigorous_activity_days, IPAQ_Vigorous_activity_minutes_per_day
+
   ) %>%
   
   # drop cases with PA == 6
@@ -311,3 +338,25 @@ plot_pairwise <- function(.data, .variables, save = F) {
   return(plt)
   
 }
+
+
+# DO FORMATTING OF AN ANOVA/X2 TABLE ----
+format_table <- function(table) table %>%
+  
+  mutate( across( c("Stat","ES"), ~ sub(".*=", "", .x) ) ) %>%
+  gt(rowname_col = "label") %>%
+  cols_align(columns = -1, align = "center") %>%
+  cols_label(
+    Stat ~ "Test statistic",
+    ES ~ "Effect size",
+    p.value ~ "p-value"
+  ) %>%
+  tab_footnote(
+    footnote = md("F-statistic for continuous and χ^2^ statistic for categorical variables."),
+    locations = cells_column_labels(columns = Stat)
+  ) %>%
+  tab_footnote(
+    footnote = md("Generalized η^2^ for continuous and Cramer's V for categorical variables.
+                  Values are presented as estimate [95% confidence interval]."),
+    locations = cells_column_labels(columns = ES)
+  )
