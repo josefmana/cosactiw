@@ -6,17 +6,17 @@ library(targets)
 # Set target options:
 tar_option_set( packages = c(
   
-  "here", # for path listing
-  "tidyverse", # for data wrangling
-  "ggdag", # for DAG drawing
-  "ggraph", # for advance DAG/ggplot operations
-  "ggtext", # for adding text to plots
-  "patchwork", # for arranging plots
-  "openxlsx", # for data reading
-  "readxl", # for .xls reading
+  "here",        # for path listing
+  "tidyverse",   # for data wrangling
+  "ggdag",       # for DAG drawing
+  "ggraph",      # for advance DAG/ggplot operations
+  "ggtext",      # for adding text to plots
+  "patchwork",   # for arranging plots
+  "openxlsx",    # for data reading
+  "readxl",      # for .xls reading
   "performance", # for regression diagnostics 
-  "emmeans", # for models' marginal means estimation
-  "gridExtra" # for saving tables as images
+  "emmeans",     # for models' marginal means estimation
+  "gridExtra"    # for saving tables as images
 
 ) )
 
