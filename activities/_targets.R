@@ -10,9 +10,14 @@ tar_option_set( packages = c(
   "tidyverse",   # for data wrangling
   "openxlsx",    # for data reading
   "effsize",     # for effect sizes
-  "rcompanion"   # for computation of stats
+  "rcompanion",  # for computation of some effect sizes
+  "brms",        # for Bayesian regressions
+  "bayesplot"    # for plotting
   
 ) )
+
+# Use multiple cores for Bayesian models fitting:
+options( mc.cores = parallel::detectCores() )
 
 # Load all in-house functions:
 tar_source()
@@ -60,6 +65,28 @@ list(
   tar_target(
     name    = chisquares, # chi-square test for each of the cross-tables
     command = chi_squares(.tabs = cross_tables)
+  ),
+  
+  # INTENSITIES REGRESSIONS ----
+  tar_target(
+    name    = preprocessed_data, # data pre-processed for Bayesian regressions
+    command = preprocess_data(.input = data_long)
+  ),
+  tar_target(
+    name    = priors, # set-up priors for GLMMs
+    command = set_priors() 
+  ),
+  tar_target(
+    name    = formulas, # set-up linear model formulas for GLMMs
+    command = set_formulas() 
+  ),
+  tar_target(
+    name    = regressions, # fit a set of pre-specified Bayesian GLMMs
+    command = fit_regressions(.formulas = formulas, .priors = priors, .data = preprocessed_data)
+  ),
+  tar_target(
+    name    = loo_comparisons, # compare models via PSIS LOO
+    command = psis_loo(.fits = regressions)
   )
 
   
