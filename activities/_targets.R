@@ -12,7 +12,8 @@ tar_option_set( packages = c(
   "effsize",     # for effect sizes
   "rcompanion",  # for computation of some effect sizes
   "brms",        # for Bayesian regressions
-  "bayesplot"    # for plotting
+  "bayesplot",   # for plotting
+  "patchwork"    # for arranging plot
   
 ) )
 
@@ -87,6 +88,22 @@ list(
   tar_target(
     name    = loo_comparisons, # compare models via PSIS LOO
     command = psis_loo(.fits = regressions)
+  ),
+  tar_target(
+    name    = ppc_data, # add categories for PPCs
+    command = add_ppc_categories(.data = preprocessed_data) 
+  ),
+  tar_target(
+    name    = posterior_predictive_checks, # compute PPCs for each model
+    command = perform_posterior_checks(.fits = regressions, .data = ppc_data) 
+  ),
+  tar_target(
+    name    = posterior_expectations, # extract posterior pairwise comparisons from selected model
+    command = compute_posterior_expectations(.data = preprocessed_data, .fit = regressions$ordered_time)
+  ),
+  tar_target(
+    name    = posterior_interaction_plots, # visualise interactions
+    command = draw_interaction_plots(.posterior_expect = posterior_expectations)
   )
 
   
