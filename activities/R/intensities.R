@@ -1,5 +1,6 @@
 #
-# Functions to describe retrospectively recalled leisure activities with respect to cognitive SA via Bayesian regressions.
+# Functions to describe retrospectively recalled leisure activities with respect to cognitive SuperAging
+# via Bayesian regressions.
 #
 
 #
@@ -146,7 +147,7 @@ perform_posterior_checks <- function(.fits, .data) lapply(
 
 #
 # EXTRACT POSTERIOR EXPECTATIONS ----
-compute_posterior_expectations <- function(.data, .fit) {
+compute_posterior_expectations <- function(.data, .fit, output = "expectations") {
   
   
   ## ---- Posterior Distributions ----
@@ -188,7 +189,7 @@ compute_posterior_expectations <- function(.data, .fit) {
   
   ## ---- Posterior Expecations ----
   # add median and 95% PPIs for each prediction to the d_seq
-  post_sum <- cbind(
+  expectations <- cbind(
     
     d_seq,
     apply(
@@ -223,10 +224,167 @@ compute_posterior_expectations <- function(.data, .fit) {
   
   ## ---- Pairwise Comparisons ----
   
+  # prepare a summary data frame
+  post_comp <- list(
+      
+      # activity type and SA comparisons
+      expand_grid(
+        diff    = c("physical - mental", "SA - nonSA", "physical_SA - mental_SA", "physical_nonSA - mental_nonSA"),
+        diff2   = NA,
+        timebin = levels(d_seq$Time_bin),
+        actype  = NA,
+        SA      = NA
+      ),
+      
+      # two-way interactions of interest
+      expand_grid(
+        diff    = "physical - mental",
+        diff2   = "SA - nonSA",
+        timebin = levels(d_seq$Time_bin),
+        actype  = NA,
+        SA      = NA
+      ),
+      
+      # time comparisons
+      expand_grid(
+        diff     =
+          data.frame( v2 = seq(30,80,5) ) %>%
+          mutate( v1 = v2 + 5 ) %>%
+          mutate( diff = paste0(v1," - ",v2) ) %>%
+          select(diff) %>%
+          unlist(use.names = F) %>%
+          c("85 - 30"),
+        diff2   = NA,
+        timebin = NA,
+        actype  = c("mental","physical",NA),
+        SA      = c("SA","nonSA",NA)
+      ),
+      
+      # two-way interactions with time
+      expand_grid(diff = "85 - 30", diff2 = "SA - nonSA", timebin = NA, actype = c("mental","physical",NA), SA = NA),
+      expand_grid(diff = "85 - 30", diff2 = "physical - mental", timebin = NA, actype = NA, SA = c("SA","nonSA",NA) )
+      
+    ) %>%
+      
+      do.call( rbind.data.frame, . ) %>%
+      mutate( # re-code
+        SA   = case_when(
+          diff == "physical_SA - mental_SA" ~ "SA",
+          diff == "physical_nonSA - mental_nonSA" ~ "nonSA",
+          .default = SA
+        ),
+        diff = gsub("_SA|_nonSA", "", diff)
+      )
+  
+  # summarise the contrasts (pairwise comparisons)
+  contrasts <- lapply(
+    
+    set_names( x = c("log","logexp") ),
+    function(s)
+      
+      with(
+        
+        post_comp, sapply(
+          
+          X = 1:nrow(post_comp),
+          FUN = function(i) {
+            
+            # extract terms
+            term1 <- strsplit(diff[i], " - ")[[1]][1]
+            term2 <- strsplit(diff[i], " - ")[[1]][2]
+            
+            # find out which variable is being compared
+            # and extract column name appropriately
+            if ( term1 %in% na.omit( unique(actype) ) ) {
+              
+              col1 <- paste(SA[i], term1, timebin[i], sep = "_")
+              col2 <- paste(SA[i], term2, timebin[i], sep = "_")
+              
+            } else if ( term1 %in% na.omit( unique(SA) ) ) {
+              
+              col1 <- paste(term1, actype[i], timebin[i], sep = "_")
+              col2 <- paste(term2, actype[i], timebin[i], sep = "_")
+              
+            } else if ( term1 %in% na.omit( unique(timebin) ) ) {
+              
+              col1 <- paste(SA[i], actype[i], term1, sep = "_")
+              col2 <- paste(SA[i], actype[i], term2, sep = "_")
+              
+            }
+            
+            # extract the resulting posterior
+            if   (s == "logexp") dif <- exp( ppred[ , col1] ) - exp( ppred[ , col2] )
+            else if (s == "log") dif <-      ppred[ , col1]   -      ppred[ , col2]
+            
+            # compute interaction if relevant
+            if( !is.na(diff2[i]) ) {
+              
+              # extract second terms
+              term21 <- strsplit(diff2[i], " - ")[[1]][1]
+              term22 <- strsplit(diff2[i], " - ")[[1]][2]
+              
+              # can be only SA or activity_type
+              # find out columns to be compared
+              if ( term1 %in% na.omit( unique(actype) ) ) {
+                
+                # term2 is SA
+                col11 <- paste(term21, term1, timebin[i], sep = "_")
+                col12 <- paste(term21, term2, timebin[i], sep = "_")
+                col21 <- paste(term22, term1, timebin[i], sep = "_")
+                col22 <- paste(term22, term2, timebin[i], sep = "_")
+                
+              }  else if ( term1 %in% na.omit( unique(timebin) ) ) {
+                
+                # term2 can be SA or activity_type
+                if ( term21 %in% na.omit( unique(actype) ) ) {
+                  
+                  # term2 is activity_type
+                  col11 <- paste(SA[i], term21, term1, sep = "_")
+                  col12 <- paste(SA[i], term21, term2, sep = "_")
+                  col21 <- paste(SA[i], term22, term1, sep = "_")
+                  col22 <- paste(SA[i], term22, term2, sep = "_")
+                  
+                } else if ( term21 %in% na.omit( unique(SA) ) ) {
+                  
+                  # term2 is SA
+                  col11 <- paste(term21, actype[i], term1, sep = "_")
+                  col12 <- paste(term21, actype[i], term2, sep = "_")
+                  col21 <- paste(term22, actype[i], term1, sep = "_")
+                  col22 <- paste(term22, actype[i], term2, sep = "_")
+                  
+                }
+                
+              }
+              
+              # extract the resulting posterior
+              if   (s == "logexp") dif <- ( exp( ppred[ , col11] ) - exp( ppred[ , col12] ) ) - ( exp( ppred[ , col21] ) - exp( ppred[ , col22] ) )
+              else if (s == "log") dif <- (      ppred[ , col11] -        ppred[ , col12] )   - (      ppred[ , col21]   -      ppred[ , col22] )
+              
+            }
+            
+            # extract final results
+            est <- paste0( rprint(median(dif), 2)," ", ciprint( unlist( eti(dif) )[-1] ) )
+            pd  <- paste0( rprint( 100 * c( p_direction(dif) )$pd, 2 ), "%" )
+            return( c(Estimate = est, pd = pd) )
+            
+          }
+        )
+      ) %>%
+      
+      t() %>%
+      cbind.data.frame( post_comp, . ) %>%
+      mutate(scale = s, .before = Estimate)
+    
+  ) %>%
+    
+    do.call( rbind.data.frame, . ) %>%
+    pivot_wider( names_from = scale, values_from = c(Estimate, pd) ) %>%
+    relocate(pd_log, .after = Estimate_log)
+  
   
   
   ## ---- Return ----
-  return(post_sum)
+  return( get(output) )
   
 }
 

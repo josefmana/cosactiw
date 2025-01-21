@@ -1,5 +1,6 @@
 #
-# Functions to describe retrospectively remembered leisure activities with respect to cognitive SA
+# Functions to describe & predict counts of retrospectively remembered leisure activities
+# with respect to cognitive SuperAging.
 #
 
 #
@@ -28,8 +29,19 @@ count_subjects <- function(.data, .subset) sapply(
 )
 
 #
+# ACTIVITY COUNTS REGRESSIONS ----
+count_regressions <- function(.input, .data) with(
+  
+  .input, lapply(
+    
+    
+    
+  )
+)
+
+#
 # ACTIVITY COUNTS PER (SA) STATUS ----
-activity_counts <- function(.input, .data) {
+count_activities <- function(.input, .data) {
   
   # extract descriptive statistics of activity counts
   output <- with(

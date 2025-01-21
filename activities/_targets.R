@@ -12,6 +12,7 @@ tar_option_set( packages = c(
   "effsize",     # for effect sizes
   "rcompanion",  # for computation of some effect sizes
   "brms",        # for Bayesian regressions
+  "bayestestR",  # for ETIs
   "bayesplot",   # for plotting
   "patchwork"    # for arranging plot
   
@@ -46,7 +47,7 @@ list(
     command = pivot_data(.input = data_long)
   ),
   
-  # DATA DESCRIPTION ----
+  # ACTIVITY COUNTS ----
   tar_target(
     name    = both_seasons_ids, # participants who reported the same activity as both seasonal and non-seasonal
     command = both_seasons(.input = data_wide)
@@ -57,7 +58,7 @@ list(
   ),
   tar_target(
     name    = activity_counts, # mean ± SD of activities per seasoness & category
-    command = activity_counts(.input = data_long, .data = data_wide)
+    command = count_activities(.input = data_long, .data = data_wide)
   ),
   tar_target(
     name    = cross_tables, # cross-tables of the number of at least one activity in SA vs non-SA
@@ -68,7 +69,10 @@ list(
     command = chi_squares(.tabs = cross_tables)
   ),
   
-  # INTENSITIES REGRESSIONS ----
+  
+  
+  
+  # INTENSITIES ----
   tar_target(
     name    = preprocessed_data, # data pre-processed for Bayesian regressions
     command = preprocess_data(.input = data_long)
@@ -98,8 +102,12 @@ list(
     command = perform_posterior_checks(.fits = regressions, .data = ppc_data) 
   ),
   tar_target(
-    name    = posterior_expectations, # extract posterior pairwise comparisons from selected model
-    command = compute_posterior_expectations(.data = preprocessed_data, .fit = regressions$ordered_time)
+    name    = posterior_expectations, # extract posterior expectations from selected model
+    command = compute_posterior_expectations(.data = preprocessed_data, .fit = regressions$ordered_time, output = "expectations")
+  ),
+  tar_target(
+    name    = posterior_contrasts, # extract posterior pairwise comparisons from selected model
+    command = compute_posterior_expectations(.data = preprocessed_data, .fit = regressions$ordered_time, output = "contrasts")
   ),
   tar_target(
     name    = posterior_interaction_plots, # visualise interactions
