@@ -11,6 +11,9 @@ tar_option_set( packages = c(
   "openxlsx",    # for data reading
   "effsize",     # for effect sizes
   "rcompanion",  # for computation of some effect sizes
+  #"MASS",        # for Negative Binomial regressions
+  #"pscl",        # for zero-inflated regressions
+  "performance", # for model diagnostics
   "brms",        # for Bayesian regressions
   "bayestestR",  # for ETIs
   "bayesplot",   # for plotting
@@ -68,9 +71,18 @@ list(
     name    = chisquares, # chi-square test for each of the cross-tables
     command = chi_squares(.tabs = cross_tables)
   ),
-  
-  
-  
+  tar_target(
+    name    = counts_regression_specifications, # specifications for regressions
+    command = specify_regression(.input = data_long)
+  ),
+  tar_target(
+    name    = counts_regressions, # linear regressions of activity types
+    command = count_regressions(.data = data_wide, .specs = counts_regression_specifications)
+  ),
+  tar_target(
+    name    = counts_regressions_diagnostics, # model diagnostics
+    command = diagnose_regressions(.fits = counts_regressions)
+  ),
   
   # INTENSITIES ----
   tar_target(
@@ -79,19 +91,19 @@ list(
   ),
   tar_target(
     name    = priors, # set-up priors for GLMMs
-    command = set_priors() 
+    command = set_priors()
   ),
   tar_target(
     name    = formulas, # set-up linear model formulas for GLMMs
-    command = set_formulas() 
+    command = set_formulas()
   ),
   tar_target(
-    name    = regressions, # fit a set of pre-specified Bayesian GLMMs
+    name    = intensities_loglinear_regressions, # fit a set of pre-specified Bayesian GLMMs
     command = fit_regressions(.formulas = formulas, .priors = priors, .data = preprocessed_data)
   ),
   tar_target(
     name    = loo_comparisons, # compare models via PSIS LOO
-    command = psis_loo(.fits = regressions)
+    command = psis_loo(.fits = intensities_loglinear_regressions)
   ),
   tar_target(
     name    = ppc_data, # add categories for PPCs
@@ -99,20 +111,19 @@ list(
   ),
   tar_target(
     name    = posterior_predictive_checks, # compute PPCs for each model
-    command = perform_posterior_checks(.fits = regressions, .data = ppc_data) 
+    command = perform_posterior_checks(.fits = intensities_loglinear_regressions, .data = ppc_data) 
   ),
   tar_target(
     name    = posterior_expectations, # extract posterior expectations from selected model
-    command = compute_posterior_expectations(.data = preprocessed_data, .fit = regressions$ordered_time, output = "expectations")
+    command = compute_posterior_expectations(.data = preprocessed_data, .fit = intensities_loglinear_regressions$ordered_time, output = "expectations")
   ),
   tar_target(
     name    = posterior_contrasts, # extract posterior pairwise comparisons from selected model
-    command = compute_posterior_expectations(.data = preprocessed_data, .fit = regressions$ordered_time, output = "contrasts")
+    command = compute_posterior_expectations(.data = preprocessed_data, .fit = intensities_loglinear_regressions$ordered_time, output = "contrasts")
   ),
   tar_target(
     name    = posterior_interaction_plots, # visualise interactions
     command = draw_interaction_plots(.posterior_expect = posterior_expectations)
   )
 
-  
 )

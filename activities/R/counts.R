@@ -29,15 +29,83 @@ count_subjects <- function(.data, .subset) sapply(
 )
 
 #
-# ACTIVITY COUNTS REGRESSIONS ----
-count_regressions <- function(.input, .data) with(
+# SPECIFY REGRESSION TYPES ----
+specify_regression <- function(.input) data.frame(
   
-  .input, lapply(
-    
-    
-    
+  y = with( .input, c( "activities", unique(map$type), unique(map$category) ) )
+  
+) %>% mutate(
+  
+  type = case_when(
+    y %in% c("activities") ~ "lm",
+    #y %in% c("community_activities", "mixed_mental", "house_and_garden", "strengthening_resistance_exercise") ~ "glm",
+    .default = "lm"
   )
+  
 )
+
+#
+# ACTIVITY COUNTS REGRESSIONS ----
+count_regressions <- function(.data, .specs) {
+  
+  # prepare data
+  # re-coding such that the data are compatible with the VLS and COBRA analyses
+  d0 <- .data$all %>% mutate(
+    
+    saf = factor(
+      if_else(SA == "SA", T, F),
+      levels = c(T, F), 
+      labels = c("Superager", "non-Superager")
+    ),
+    edu2 = factor(
+      if_else(as.numeric(Education_level) > 2, 2, 1),
+      levels = 1:2
+    ),
+    age = Age_years
+  )
+  
+  # do the regressions
+  fits <- with(
+    
+    .specs, lapply(
+      
+      set_names(y),
+      function(i)
+        
+        # zero-inflate negative-binomial
+        if (type[y == i] == "glm" ) glm(
+          
+          formula = as.formula( paste0(i," ~ saf + age + edu2") ),
+          data    = d0,
+          family  = poisson(link = "log")
+          
+          # linear regression or vanilla negative-binomial
+        ) else do.call(
+          
+          what = type[y == i] ,
+          args = list(
+            formula = as.formula( paste0(i," ~ saf + age + edu2") ),
+            data    = d0
+          )
+          
+        )
+    )
+  )
+  
+  # return
+  return(fits)
+  
+}
+
+#
+# DIAGNOSE MODELS ----
+diagnose_regressions <- function(.fits) lapply(
+  
+  set_names( names(.fits) ),
+  function(y) check_model(x = .fits[[y]])
+  
+)
+
 
 #
 # ACTIVITY COUNTS PER (SA) STATUS ----
