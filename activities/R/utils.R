@@ -24,9 +24,6 @@ pprint <- function(.p, .dec = 3, text = F) ifelse(
   
 )
 
-# calculate and return mean ± SD ignoring NAs
-#msd <- function(x, d = 2) paste0( rprint( mean(x, na.rm = T), d ), " ± ", rprint( sd(x, na.rm = T), d ) )
-
 #
 # GIVE CENTRAL TENDENCY ± VARIABILITY ----
 cenvar <- function(.y, .dec = 2, cen = "mean", var = "sd", sep = " ± ") sapply(
@@ -40,6 +37,7 @@ cenvar <- function(.y, .dec = 2, cen = "mean", var = "sd", sep = " ± ") sapply(
   ) %>% rprint(d = .dec)
   
 ) %>% paste(collapse = sep)
+
 
 #
 # UPPER BOUND ----

@@ -136,40 +136,35 @@ get_data <- function(mfile, dfile) {
 # PIVOT DATA TO WIDE FORMAT ----
 pivot_data <- function(.input) with(
   
-  .input, lapply(
+  .input, sapply(
     
-    set_names( c("all","non-seasonal","seasonal") ),
-    function(x) sapply(
+    map$activity,
+    function(i) sapply(
       
-      map$activity,
-      function(i) sapply(
+      unique(act$ID),
+      function(j) if_else(
         
-        unique(act$ID),
-        function(j) {
-
-          if      (x == "all")          if_else(i %in% act[ act$ID == j, "Activity"] , 1, 0)
-          else if (x == "seasonal")     if_else(i %in% with( subset(act, Seasonal == T), Activity[ID == j] ), 1, 0)
-          else if (x == "non-seasonal") if_else(i %in% with( subset(act, Seasonal == F), Activity[ID == j] ), 1, 0)
-
-        }
-        
+        condition = i %in% act[ act$ID == j, "Activity"],
+        true      = 1,
+        false     = 0
+          
       )
-    ) %>%
       
-      as.data.frame() %>%
-      mutate(
-        activities = rowSums( across( everything() ) ), # sum all activities per participant
-        !!!setNames(rep( NA, length( unique(map$type) ) )    , unique(map$type) ),
-        !!!setNames(rep( NA, length( unique(map$category) ) ), unique(map$category) ),
-        across( unique(map$type),     ~ rowSums( across( all_of( map[map$type     == cur_column(), "activity"] ) ) ) ),
-        across( unique(map$category), ~ rowSums( across( all_of( map[map$category == cur_column(), "activity"] ) ) ) )
-      ) %>%
-      rownames_to_column("ID") %>%
-      
-      # join other data sets
-      left_join(cog, by = "ID") %>%
-      left_join(dem, by = "ID")
+    )
+  ) %>%
     
-  )
-
+    as.data.frame() %>%
+    mutate(
+      activities = rowSums( across( everything() ) ), # sum all activities per participant
+      !!!setNames(rep( NA, length( unique(map$type) ) )    , unique(map$type) ),
+      !!!setNames(rep( NA, length( unique(map$category) ) ), unique(map$category) ),
+      across( unique(map$type),     ~ rowSums( across( all_of( map[map$type     == cur_column(), "activity"] ) ) ) ),
+      across( unique(map$category), ~ rowSums( across( all_of( map[map$category == cur_column(), "activity"] ) ) ) )
+    ) %>%
+    rownames_to_column("ID") %>%
+    
+    # join other data sets
+    left_join(cog, by = "ID") %>%
+    left_join(dem, by = "ID")
+  
 )

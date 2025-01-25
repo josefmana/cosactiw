@@ -52,24 +52,16 @@ list(
   
   # ACTIVITY COUNTS ----
   tar_target(
-    name    = both_seasons_ids, # participants who reported the same activity as both seasonal and non-seasonal
-    command = both_seasons(.input = data_wide)
-  ),
-  tar_target(
     name    = N, # count SA and non-SA subjects
-    command = count_subjects(.data = data_wide, .subset = "all")
+    command = count_subjects(.data = data_wide)
   ),
   tar_target(
     name    = activity_counts, # mean ± SD of activities per seasoness & category
     command = count_activities(.input = data_long, .data = data_wide)
   ),
   tar_target(
-    name    = cross_tables, # cross-tables of the number of at least one activity in SA vs non-SA
-    command = contingency_tables(.input = data_long, .data = data_wide)
-  ),
-  tar_target(
-    name    = chisquares, # chi-square test for each of the cross-tables
-    command = chi_squares(.tabs = cross_tables)
+    name    = counts_comparisons_table, # add t-tests & Mann-Whitney Us for main text
+    command = add_comparisons(.table = activity_counts, .data = data_wide)
   ),
   tar_target(
     name    = counts_regression_specifications, # specifications for regressions
@@ -82,6 +74,18 @@ list(
   tar_target(
     name    = counts_regressions_diagnostics, # model diagnostics
     command = diagnose_regressions(.fits = counts_regressions)
+  ),
+  tar_target(
+    name    = counts_regressions_table, # add regression parameters to descriptives
+    command = add_regression_parameters(.table = activity_counts, .fits = counts_regressions, .input = data_long)
+  ),
+  tar_target(
+    name    = cross_tables, # cross-tables of the number of at least one activity in SA vs non-SA
+    command = contingency_tables(.input = data_long, .data = data_wide)
+  ),
+  tar_target(
+    name    = chisquares, # chi-square test for each of the cross-tables
+    command = chi_squares(.tabs = cross_tables)
   ),
   
   # INTENSITIES ----
