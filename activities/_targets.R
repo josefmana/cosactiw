@@ -11,8 +11,6 @@ tar_option_set( packages = c(
   "openxlsx",    # for data reading
   "effsize",     # for effect sizes
   "rcompanion",  # for computation of some effect sizes
-  #"MASS",        # for Negative Binomial regressions
-  #"pscl",        # for zero-inflated regressions
   "performance", # for model diagnostics
   "brms",        # for Bayesian regressions
   "bayestestR",  # for ETIs
@@ -42,8 +40,13 @@ list(
     format  = "file"
   ),
   tar_target(
+    name    = sa_file, # file with new SA classification
+    command = here("_raw", "COBRA_JLuk", "data", "info.rds"),
+    format  = "file"
+  ),
+  tar_target(
     name    = data_long, # extract & format data in the long format
-    command = get_data(mfile = mapping_file, dfile = data_file)
+    command = get_data(mfile = mapping_file, dfile = data_file, sfile = sa_file)
   ),
   tar_target(
     name    = data_wide, # extract a set of wide data
@@ -56,7 +59,7 @@ list(
     command = count_subjects(.data = data_wide)
   ),
   tar_target(
-    name    = activity_counts, # mean ± SD of activities per seasoness & category
+    name    = activity_counts, # meanc ± SD of activities per seasoness & category
     command = count_activities(.input = data_long, .data = data_wide)
   ),
   tar_target(
@@ -127,7 +130,7 @@ list(
   ),
   tar_target(
     name    = posterior_interaction_plots, # visualise interactions
-    command = draw_interaction_plots(.posterior_expect = posterior_expectations)
+    command = draw_interaction_plots(.posterior_expect = posterior_expectations, text = F)
   )
 
 )

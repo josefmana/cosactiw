@@ -4,7 +4,10 @@
 
 #
 # IMPORT THE DATA ----
-get_data <- function(mfile, dfile) {
+get_data <- function(mfile, dfile, sfile) {
+  
+  # included women
+  included <- readRDS(sfile)$id
   
   # activities mapping
   map <-
@@ -50,15 +53,22 @@ get_data <- function(mfile, dfile) {
         ordered = T
       )
     ) %>%
+    filter(ID %in% included) %>% # keep only the same women as in COBRA analysis
     select(ID, Valid, Age_years, Subjective_age_years, Education_years, Education_level, PA, FAQ, MMSE)
   
   # cognition
   cog <-
     read.xlsx( dfile, sheet = "3COGNITIVE_TESTS" ) %>%
+    left_join(
+      readRDS(sfile) %>%
+        mutate(ID = gsub(" ", "", id) ) %>% # no spaces in ID allowed)
+        select(ID, sa)
+    ) %>%
+    filter(ID %in% included) %>% # keep only the same women as in COBRA analysis
     mutate(
-      ID = gsub(" ", "", ID), # no spaces in ID allowed,
+      ID = gsub(" ", "", ID), # no spaces in ID allowed
       SA = factor(
-        `SA_New-BNT-TMT`,
+        if_else(sa == T, 1, 2),
         levels = 1:2,
         labels = c("SA", "nonSA")
       ),
@@ -96,12 +106,14 @@ get_data <- function(mfile, dfile) {
         )
       ),
       Category = unlist( sapply( 1:nrow(.), function(i) map[map$activity == Activity[i], "category"] ), use.names = F )
-    )
+    ) %>%
+    filter(ID %in% included) # keep only the same women as in COBRA analysis
   
   # Cobra-A
   cobra <-
     read.xlsx(dfile, sheet = "COSACTIW-pro-JAMOVI") %>%
     select(1, `Total-mental-activities`, `total-MA-frequency`, `Total-MA-time`) %>%
+    filter(ID %in% included) %>% # keep only the same women as in COBRA analysis
     rename(
       "cobra_a_total" = "Total-mental-activities",
       "cobra_a_frequency" = "total-MA-frequency",
@@ -112,6 +124,7 @@ get_data <- function(mfile, dfile) {
   vls <-
     read.xlsx(dfile, sheet = "COSACTIW-pro-JAMOVI") %>%
     select( 1, starts_with("VLS_I") ) %>%
+    filter(ID %in% included) %>% # keep only the same women as in COBRA analysis
     pivot_longer(
       cols = -ID,
       names_to = "item",

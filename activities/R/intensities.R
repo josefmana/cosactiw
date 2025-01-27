@@ -21,8 +21,8 @@ preprocess_data <- function(.input) with(
       ID            = factor(ID),
 
       # intensity/frequency (outcome) measures
-      Intensity    = as.integer( if_else(Intensity == "do not know", NA, Intensity) ),
-      logIntensity = log( as.numeric(Intensity)-1 ),
+      Intensity    = as.integer( if_else(Intensity == "do not know", NA, Intensity) ) - 1, # subtracting 1 so that the scale starts from 1 not 2
+      logIntensity = log( as.numeric(Intensity) ),
 
       # time (predictor) variables
       Time_past = Time_bin - Age_years,
@@ -390,7 +390,7 @@ compute_posterior_expectations <- function(.data, .fit, output = "expectations")
 
 #
 # POSTERIOR INTERACTION PLOTS ----
-draw_interaction_plots <- function(.posterior_expect) {
+draw_interaction_plots <- function(.posterior_expect, text = F) {
   
   # prepare plots
   plts <- lapply(
@@ -403,32 +403,49 @@ draw_interaction_plots <- function(.posterior_expect) {
         .posterior_expect %>%
         filter( !is.na(Activity_type) ) %>%
         filter( !is.na(SA) ) %>%
-        filter( scale == i )
+        filter( scale == i ) %>%
+        mutate( # re-format some for easier time plotting
+          SuperAging = factor(
+            x = if_else(SA == "SA", 1, 0),
+            levels = 0:1,
+            labels = c("Yes", "No")
+          ),
+          `Activity type` = factor(
+            x = case_when(
+              Activity_type == "physical" ~ 1,
+              Activity_type == "mental"   ~ 2
+            ),
+            levels = 1:2,
+            labels = c("Physical", "Mental")
+          )
+        )
       
       # plot both ways
       list(
         
         data %>%
           ggplot() +
-          aes(x = Time_bin, y = Estimate, ymin = ETI_low, ymax = ETI_high, colour = Activity_type, group = Activity_type) + 
+          aes(x = Time_bin, y = Estimate, ymin = ETI_low, ymax = ETI_high, colour = `Activity type`, group = `Activity type`) + 
           geom_point(position = position_dodge(width = .5), size = 4) +
           geom_linerange(position = position_dodge(width = .5), linewidth = 1.5) +
           geom_line(linetype = "dashed", linewidth = .8) +
           scale_colour_manual( values = c("#56B4E9","#E69F00") ) +
-          facet_wrap(~ SA, nrow = 2) +
+          labs(y = ifelse(i == "log", "log(Intensity)", "Intensity (1-5 points)"), x = "Time bin (years)") +
+          facet_wrap( ~ SA, nrow = 2, labeller = as_labeller( c(SA = "SuperAging", nonSA = "non-SuperAging") ) ) +
           theme_bw(base_size = 12) +
-          theme(panel.grid = element_blank(), legend.position = "bottom"),
+          theme(legend.position = "bottom"),
         
         data %>%
           ggplot() +
-          aes(x = Time_bin, y = Estimate, ymin = ETI_low, ymax = ETI_high, colour = SA, group = SA) +
+          aes(x = Time_bin, y = Estimate, ymin = ETI_low, ymax = ETI_high, colour = SuperAging, group = SuperAging) +
           geom_point(position = position_dodge(width = .5), size = 4) +
           geom_linerange(position = position_dodge(width = .5), linewidth = 1.5) +
           geom_line(linetype = "dashed", linewidth = .8) +
           scale_colour_manual( values = c("#CC79A7","#999999") ) +
-          facet_wrap(~ Activity_type, nrow = 2) +
+          labs(y = ifelse(i == "log", "log(Intensity)", "Intensity (1-5 points)"), x = "Time bin (years)") +
+          facet_wrap(~ `Activity type`, nrow = 2) +
           theme_bw(base_size = 12) +
-          theme(panel.grid = element_blank(), legend.position = "bottom")
+          theme(legend.position = "bottom")
         
       )
     }
@@ -438,15 +455,25 @@ draw_interaction_plots <- function(.posterior_expect) {
   figs <- lapply(
     
     set_names( x = names(plts) ),
-    function(i)
-      with( plts, get(i)[[1]] | get(i)[2] ) +
-      plot_layout(axis_titles = "collect") +
-      plot_annotation(
-        title = "Three-way interaction between time bin, SA, and activity type",
-        subtitle = paste0("Left and right sets of panels are representation of the same interaction on a ",i," scale"),
-        theme = theme( plot.title = element_text(hjust = .5, face = "bold"), plot.subtitle = element_text(hjust = .5) )
+    function(i) {
+      
+      output <-
+        with( plts, get(i)[[1]] | get(i)[2] ) +
+        plot_layout(axis_titles = "collect")
+      
+      if (text == F) return(output)
+      else if (text == T) return(
+        output + plot_annotation(
+          title = ifelse(text == F, NULL, "Three-way interaction between time bin, SA, and activity type"),
+          subtitle = ifelse(text == F, NULL, paste0("Left and right sets of panels are representation of the same interaction on a ",i," scale") ),
+          theme = theme( plot.title = element_text(hjust = .5, face = "bold"), plot.subtitle = element_text(hjust = .5) )
+        )
       )
-    
+      
+    }
+      
+      
+
   )
   
   # return the results
