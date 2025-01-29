@@ -2,6 +2,7 @@
 
 # Load packages required to define the pipeline:
 library(targets)
+library(tarchetypes)
 
 # Set target options:
 tar_option_set( packages = c(
@@ -57,6 +58,10 @@ list(
   tar_target(
     name    = N, # count SA and non-SA subjects
     command = count_subjects(.data = data_wide)
+  ),
+  tar_target(
+    name    = demography_comparisons, # comparing age and education
+    command = compare_demography(data = data_wide)
   ),
   tar_target(
     name    = activity_counts, # meanc ± SD of activities per seasoness & category
@@ -131,6 +136,13 @@ list(
   tar_target(
     name    = posterior_interaction_plots, # visualise interactions
     command = draw_interaction_plots(.posterior_expect = posterior_expectations, text = F)
+  ),
+  
+  # REPORT ----
+  tar_quarto(
+    name = report,
+    path = "report.qmd",
+    quiet = F
   )
 
 )

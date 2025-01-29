@@ -14,6 +14,23 @@ count_subjects <- function(.data) sapply(
 )
 
 #
+# DEMOGRAPHY COMPARISONS ----
+compare_demography <- function(data) data %>%
+  
+  group_by(SA) %>%
+  summarise( across( all_of( c("Age_years","Education_years") ), cenvar ) ) %>%
+  column_to_rownames("SA") %>%
+  t() %>%
+  as.data.frame() %>%
+  
+  # add t-test results
+  mutate(
+    t  = unlist(sapply( rownames(.), function(y) rprint(t.test(as.formula( paste0(y," ~ SA") ), data = data)$statistic, d = 3) ), use.names = F ),
+    df = unlist(sapply( rownames(.), function(y) rprint(t.test(as.formula( paste0(y," ~ SA") ), data = data)$parameter, d = 2) ), use.names = F ),
+    p  = unlist(sapply( rownames(.), function(y) pprint(t.test(as.formula( paste0(y," ~ SA") ), data = data)$p.value, .dec = 3, text = T) ), use.names = F )
+  )
+
+#
 # SPECIFY REGRESSION TYPES ----
 specify_regression <- function(.input) data.frame(
   
