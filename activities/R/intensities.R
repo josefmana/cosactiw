@@ -105,43 +105,69 @@ add_ppc_categories <- function(.data) mutate(
 
 #
 # DO POSTERIOR PREDICTIVE CHECKING ----
-perform_posterior_checks <- function(.fits, .data) lapply(
+perform_posterior_checks <- function(.fits, .data, save = T) lapply(
   
   set_names( names(.fits) ),
   function(y) lapply(
     
     set_names( x = c("dens", "mean", "sd") ),
-    function(f) if (f == "dens") ppc_plot(
+    function(f) {
       
-      # density plots
-      fit   = .fits[[y]],
-      data  = subset( .data, complete.cases(logIntensity) ),
-      y     = "logIntensity",
-      x     = "SA_Type_Time",
-      labs  = list(
-        "Observed (thick lines) and predicted (thin lines) distributions of log(Intensity) of recalled leisure activities",
-        "Cells represent different combinations of SA status, activity type, and time bin."
-      ),
-      meth  = "dens_overlay_grouped",
-      draws = sample(1:4e3, 1e2),
-      stat  = NULL
+      # do the plotting
+      if (f == "dens") plt <- ppc_plot(
+        
+        # density plots
+        fit   = .fits[[y]],
+        data  = subset( .data, complete.cases(logIntensity) ),
+        y     = "logIntensity",
+        x     = "SA_Type_Time",
+        labs  = list(
+          "Observed (thick lines) and predicted (thin lines) distributions of log(Intensity) of recalled leisure activities",
+          "Cells represent different combinations of SA status, activity type, and time bin."
+        ),
+        meth  = "dens_overlay_grouped",
+        draws = sample(1:4e3, 1e2),
+        stat  = NULL
+        
+      ) else plt <- ppc_plot(
+        
+        # stat plots
+        fit   = .fits[[y]],
+        data  = subset( .data, complete.cases(logIntensity) ),
+        y     = "logIntensity",
+        x     = "SA_Type_Time",
+        labs  = list(
+          paste0("Observed (thick bars) and predicted (histograms) ",f," of log(Intensity) of recalled leisure activities"),
+          "Cells represent different combinations of SA status, activity type, and time bin."
+        ),
+        meth  = "stat_grouped",
+        draws = 1:4e3,
+        stat  = f
+        
+      )
       
-    ) else ppc_plot(
+      # save if asked for
+      if (save == T) {
+        
+        # prepare a folder
+        new_folder("_figures")
+        
+        # save it
+        ggsave(
+          
+          filename = here( "_figures", paste0("ppc_", f,"_", y, ".jpg") ),
+          plot = plt,
+          dpi = 300,
+          width = 12.6,
+          height = 13.3
+          
+        )
+      }
       
-      # stat plots
-      fit   = .fits[[y]],
-      data  = subset( .data, complete.cases(logIntensity) ),
-      y     = "logIntensity",
-      x     = "SA_Type_Time",
-      labs  = list(
-        paste0("Observed (thick bars) and predicted (histograms) ",f," of log(Intensity) of recalled leisure activities"),
-        "Cells represent different combinations of SA status, activity type, and time bin."
-      ),
-      meth  = "stat_grouped",
-      draws = 1:4e3,
-      stat  = f
+      # return the result
+      return(plt)
       
-    )
+    } 
   )
 )
 
@@ -269,7 +295,7 @@ compute_posterior_expectations <- function(.data, .fit, output = "expectations")
       do.call( rbind.data.frame, . ) %>%
       mutate( # re-code
         SA   = case_when(
-          diff == "physical_SA - mental_SA" ~ "SA",
+          diff == "physical_SA - mental_SA"       ~ "SA",
           diff == "physical_nonSA - mental_nonSA" ~ "nonSA",
           .default = SA
         ),
@@ -390,7 +416,7 @@ compute_posterior_expectations <- function(.data, .fit, output = "expectations")
 
 #
 # POSTERIOR INTERACTION PLOTS ----
-draw_interaction_plots <- function(.posterior_expect, text = F) {
+draw_interaction_plots <- function(.posterior_expect, text = F, save = T) {
   
   # prepare plots
   plts <- lapply(
@@ -457,23 +483,39 @@ draw_interaction_plots <- function(.posterior_expect, text = F) {
     set_names( x = names(plts) ),
     function(i) {
       
+      # prepare a plot
       output <-
         with( plts, get(i)[[1]] | get(i)[2] ) +
         plot_layout(axis_titles = "collect")
       
-      if (text == F) return(output)
-      else if (text == T) return(
-        output + plot_annotation(
-          title = ifelse(text == F, NULL, "Three-way interaction between time bin, SA, and activity type"),
-          subtitle = ifelse(text == F, NULL, paste0("Left and right sets of panels are representation of the same interaction on a ",i," scale") ),
-          theme = theme( plot.title = element_text(hjust = .5, face = "bold"), plot.subtitle = element_text(hjust = .5) )
-        )
+      # add text if asked for
+      if (text == T) output <-
+          
+          output +
+          plot_annotation(
+
+            title    = ifelse(text == F, NULL, "Three-way interaction between time bin, SA, and activity type"),
+            subtitle = ifelse(text == F, NULL, paste0("Left and right sets of panels are representation of the same interaction on a ",i," scale") ),
+            theme    = theme( plot.title = element_text(hjust = .5, face = "bold"), plot.subtitle = element_text(hjust = .5) )
+
+          )
+      
+      # saving stuff
+      new_folder("_figures") # prepare a folder
+      fn <- paste0("conditional_means_", gsub("-| ","_", i),"_scale.jpg") # prepare filename
+      
+      # save if asked for
+      if (save == T ) ggsave(
+        
+        plot     = last_plot(),
+        filename = here("_figures",fn),
+        dpi      = 300,
+        width    = 12.6,
+        height   = 8.31
+  
       )
       
     }
-      
-      
-
   )
   
   # return the results

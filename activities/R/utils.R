@@ -3,6 +3,10 @@
 #
 
 #
+# PREPARE A FOLDER ----
+new_folder <- function(name) if (!dir.exists(name)) dir.create(name)
+
+#
 # ROUNDED NUMBER ----
 rprint <- function(x, d = 2) sprintf( paste0("%.",d,"f"), round(x, d) )
 

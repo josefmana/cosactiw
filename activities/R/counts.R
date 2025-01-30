@@ -289,7 +289,7 @@ add_regression_parameters <- function(.table, .fits, .input) left_join(
   extract_parameters(fits = .fits, input = .input),
   by = c("type", "category")
 
-)
+) %>% mutate_all( ~ unlist(.x, use.names = F) )
   
 
 #

@@ -27,7 +27,7 @@ author:
         department: OVV
         city: Prague
 format:
-  pdf: default
+  docx: default
 bibliography: references.bib
 csl: apa.csl
 echo: false
@@ -66,7 +66,7 @@ Self-reported leisure activities' distributions were described in three ways: (i
 
 Counts of activity type were described by their in-sample means $\pm$ standard deviations separately for SA and non-SA groups stratified by modality (physical, mental, both). Null hypotheses of equal means and stochastical uniformity of SA versus non-SA activity type counts distributions were tested via *t*-test with Welch modification to the degrees of freedom and Mann-Whitney U test respectively. Effect sizes of differences between SA and non-SA means and distributions were described by Cohen's d and Vargha and Delaney A (VD.A) as implemented in the "effsize" R package [@effsize; @vargha2000]. Furthermore, a set of linear regressions with each activity type as the outcome and additive effect of SA status, age in years and education level was fitted to explore difference in counts between SA and non-SA participants of comparable age and education level. Decision threshold for rejecting a null hypothesis was set at p < .05.
 
-The number of participants reporting at least one activity belonging to a given activity type was described by contingency tables of activity typs (rows) and SA status (SA, non-SA, columns) separately for each modality (physical, mental). Within each modality, Pearson's $\chi^2$ test of the null hypothesis that SA status and activity type are independent of each other was performed. The strength of association between SA status and activity type was described by Cramérs' V as implemented in the "rcompanion" package [@rcompanion]. Decision threshold for rejecting a null hypothesis was set at p < .05.
+The number of participants reporting at least one activity belonging to a given activity type was described by contingency tables of activity types (rows) and SA status (SA, non-SA, columns) separately for each modality (physical, mental). Within each modality, Pearson's $\chi^2$ test of the null hypothesis that SA status and activity type are independent of each other was performed. The strength of association between SA status and activity type was described by Cramérs' V as implemented in the "rcompanion" package [@rcompanion]. Decision threshold for rejecting a null hypothesis was set at p < .05.
 
 Finally, the expected means of self-reported intensities of single leisure activities across lifetime were modelled by a Bayesian Generalised Linear Mixed Model (GLMM) with time (half-decades of adult life) as a monotonic predictor [@bürkner2017b; @bürkner2020]. In the model, self-reported intensity of leisure activities was regressed on the half-decade of life (monotonic ordered predictor), SA status, modality, and their two- and three-way interactions on group-level as well as correlated participant- and activity type-specific intercepts and slopes across half-decades. The GLMM was fitted to data and used to generate posterior draws of the expected value of the activity intensity conditional on different combinations of half-decade of life, SA status and modality as predictors of interest. These posterior draws were then described by their medians and 95% equal tailed posterior intervals (ETIs). Moreover, pairwise comparisons between expected intensity conditional on half-decades of life, SA status and modality were directly compared and evaluated by the probability of direction (*pd*) index [@makowski2019]^[The *pd* is a so called index of effect existence quantifying the certainty associated with the most probable direction of a posterior distribution. Following guidelines of @makowski2019 it can be interpreted as a continuous index whereby *pd* ≥ 95% indicates uncertain association, *pd* > 95% indicates possibly existing association, *pd* > 97% indicates likely existing association, *pd* > 99% indicates probably existing association, and *pd* > 99.9% indicates almost certainly existing association.]. All pairwise comparisons estimates are denoted as $\delta_{x-y}$ throughout the article.
 
@@ -172,11 +172,10 @@ la_counts %>%
 
 ### Number of participants reporting an activity
 
-The overall distribution of the number of participants engaging in at least one activity from each activity type is presented in @tbl-la-nums. Based on the data, the null hypothesis of activity type and SA status independence was not rejected for either physical ($\chi^2$(`r chisquares['physical', 'df']`) = `r chisquares['physical', 'chisq']`, p = `chisquares['physical', 'p']`, Cramér's V = `r chisquares['physical', 'cramer_v']`) or mental ($\chi^2$(`r chisquares['mental', 'df']`) = `r chisquares['mental', 'chisq']`, p = `r chisquares['mental', 'p']`, Cramér's V = `r chisquares['mental', 'cramer_v']`) activities.
+The overall distribution of the number of participants engaging in at least one activity from each activity type is presented in @tbl-la-nums. Based on the data, the null hypothesis of activity type and SA status independence was not rejected for either physical ($\chi^2$(`r chisquares['physical', 'df']`) = `r chisquares['physical', 'chisq']`, p = `r chisquares['physical', 'p']`, Cramér's V = `r chisquares['physical', 'cramer_v']`) or mental ($\chi^2$(`r chisquares['mental', 'df']`) = `r chisquares['mental', 'chisq']`, p = `r chisquares['mental', 'p']`, Cramér's V = `r chisquares['mental', 'cramer_v']`) activities.
 
 ```{r}
 #| label: tbl-la-nums
-#| tbl-cap: Number of participants reporting at least one mental or physical activity of each type
 
 cross_tables %>%
   
@@ -184,7 +183,10 @@ cross_tables %>%
   relocate(nonSA_perc, .before = SA_perc) %>%
   mutate( Type = capitalise(Type) ) %>%
   
-  gt_apa(grp = "Type") %>%
+  gt_apa(
+    grp = "Type",
+    title = "Number of participants reporting at least one mental or physical activity of each type"
+  ) %>%
   cols_align(columns = -c(1:2), align = "center") %>%
   cols_label(
     Category ~ "Activity type",
@@ -210,13 +212,8 @@ The GLMM converged in the specified number of iterations to a stationary posteri
 
 Posterior expected intensity ratings predicted by the model are summarised in @fig-cond-means. According to the model and data, self-reported intensity of physical activities decreases with age whereas self-reported intensity of mental activities increases with age (left panel of @fig-cond-means). These modality-dependent opposing tendencies seem to be invariant to the SA status (right panel of @fig-cond-means). Pairwise comparisons of expected intensity rating between life half-decades conditional on SA status and activity modality are presented in @tbl-pair-comps. The model predicts that average intensity ratings of physical activities decrease between 85 and 30 years of age by `r sub( '-', '', sub(' .*', '', subset(pwc, diff == '85 - 30' & actype == 'physical' & SA == 'SA')$Estimate_logexp) )` points in SA (95% ETI `r paste( strsplit(subset(pwc, diff == '85 - 30' & actype == 'physical' & SA == 'SA')$Estimate_logexp, ' ')[[1]][2:3], collapse = ' ')`, *pd* = `r subset(pwc, diff == '85 - 30' & actype == 'physical' & SA == 'nonSA')$pd_logexp`) and by `r sub( '-', '', sub(' .*', '', subset(pwc, diff == '85 - 30' & actype == 'physical' & SA == 'nonSA')$Estimate_logexp) )` points in non-SA (95% ETI `r paste( strsplit(subset(pwc, diff == '85 - 30' & actype == 'physical' & SA == 'nonSA')$Estimate_logexp, ' ')[[1]][2:3], collapse = ' ')`, *pd* = `r subset(pwc, diff == '85 - 30' & actype == 'physical' & SA == 'nonSA')$pd_logexp`) participants. On the other, it predicts that average intensity ratings of mental activities increase between 85 and 30 years of age by `r sub(' .*', '', subset(pwc, diff == '85 - 30' & actype == 'mental' & SA == 'SA')$Estimate_logexp)` points in SA (95% ETI `r paste( strsplit(subset(pwc, diff == '85 - 30' & actype == 'mental' & SA == 'SA')$Estimate_logexp, ' ')[[1]][2:3], collapse = ' ')`, *pd* = `r subset(pwc, diff == '85 - 30' & actype == 'mental' & SA == 'nonSA')$pd_logexp`) and by `r sub(' .*', '', subset(pwc, diff == '85 - 30' & actype == 'mental' & SA == 'nonSA')$Estimate_logexp)` points in non-SA (95% ETI `r paste( strsplit(subset(pwc, diff == '85 - 30' & actype == 'mental' & SA == 'nonSA')$Estimate_logexp, ' ')[[1]][2:3], collapse = ' ')`, *pd* = `r subset(pwc, diff == '85 - 30' & actype == 'mental' & SA == 'nonSA')$pd_logexp`) participants. According to the model, the difference between these trends in mental and physical activity ratings evolution is non-zero with high posterior probability on the level of almost certainly existing association in both SA ($\delta_{physical-mental}$ = `r sub(' .*', '', subset(pwc, diff == '85 - 30' & diff2 == 'physical - mental' & SA == 'SA')$Estimate_logexp)`, 95% ETI `r paste( strsplit(subset(pwc, diff == '85 - 30' & diff2 == 'physical - mental' & SA == 'SA')$Estimate_logexp, ' ')[[1]][2:3], collapse = ' ')`, *pd* = `r subset(pwc, diff == '85 - 30' & diff2 == 'physical - mental' & SA == 'SA')$pd_logexp`) and non-SA ($\delta_{physical-mental}$ = `r sub(' .*', '', subset(pwc, diff == '85 - 30' & diff2 == 'physical - mental' & SA == 'nonSA')$Estimate_logexp)`, 95% ETI `r paste( strsplit(subset(pwc, diff == '85 - 30' & diff2 == 'physical - mental' & SA == 'nonSA')$Estimate_logexp, ' ')[[1]][2:3], collapse = ' ')`, *pd* = `r subset(pwc, diff == '85 - 30' & diff2 == 'physical - mental' & SA == 'nonSA')$pd_logexp`) participants. On the other hand, these trends do not significantly differ between SA and non-SA participants in either mental ($\delta_{SA-nonSA}$ = `r sub(' .*', '', subset(pwc, diff == '85 - 30' & diff2 == 'SA - nonSA' & actype == 'mental')$Estimate_logexp)`, 95% ETI `r paste( strsplit(subset(pwc, diff == '85 - 30' & diff2 == 'SA - nonSA' & actype == 'mental')$Estimate_logexp, ' ')[[1]][2:3], collapse = ' ')`, *pd* = `r subset(pwc, diff == '85 - 30' & diff2 == 'SA - nonSA' & actype == 'mental')$pd_logexp`) or physical ($\delta_{SA-nonSA}$ = `r sub(' .*', '', subset(pwc, diff == '85 - 30' & diff2 == 'SA - nonSA' & actype == 'physical')$Estimate_logexp)`, 95% ETI `r paste( strsplit(subset(pwc, diff == '85 - 30' & diff2 == 'SA - nonSA' & actype == 'physical')$Estimate_logexp, ' ')[[1]][2:3], collapse = ' ')`, *pd* = `r subset(pwc, diff == '85 - 30' & diff2 == 'SA - nonSA' & actype == 'physical')$pd_logexp`) activities.
 
-```{r}
-#| label: fig-cond-means
-#| fig-cap: Three-way interaction between half-decade of life, SuperAging, and activity modality in a model of self-reported non-seasonal leisure activities ratings.
+![Three-way interaction between half-decade of life, SuperAging, and activity modality in a model of self-reported leisure activities ratings.](_figures/conditional_means_back_transformed_raw_scale.jpg){#fig-cond-means}
 
-tar_read(posterior_interaction_plots)$`back-transformed raw`
-
-```
 
 # Appendix
 
@@ -253,7 +250,6 @@ la_regres %>%
   )
 
 ```
-
 
 ```{r}
 #| label: tbl-cond-means
@@ -333,25 +329,11 @@ pwc %>%
 
 ```
 
-```{r}
-#| label: fig-ppc-mean
+![](_figures/ppc_mean_ordered_time.jpg){#fig-ppc-mean}
 
-tar_read(posterior_predictive_checks)$ordered_time$mean
+![](_figures/ppc_sd_ordered_time.jpg){#fig-ppc-sd}
 
-```
+![](_figures/ppc_dens_ordered_time.jpg){#fig-ppc-dens}
 
-```{r}
-#| label: fig-ppc-sd
-
-tar_read(posterior_predictive_checks)$ordered_time$sd
-
-```
-
-```{r}
-#| label: fig-ppc-dens
-
-tar_read(posterior_predictive_checks)$ordered_time$dens
-
-```
 
 # References

@@ -123,7 +123,7 @@ list(
   ),
   tar_target(
     name    = posterior_predictive_checks, # compute PPCs for each model
-    command = perform_posterior_checks(.fits = intensities_loglinear_regressions, .data = ppc_data) 
+    command = perform_posterior_checks(.fits = intensities_loglinear_regressions, .data = ppc_data, save = T) 
   ),
   tar_target(
     name    = posterior_expectations, # extract posterior expectations from selected model
@@ -135,13 +135,13 @@ list(
   ),
   tar_target(
     name    = posterior_interaction_plots, # visualise interactions
-    command = draw_interaction_plots(.posterior_expect = posterior_expectations, text = F)
+    command = draw_interaction_plots(.posterior_expect = posterior_expectations, text = F, save = T)
   ),
   
   # REPORT ----
   tar_quarto(
-    name = report,
-    path = "report.qmd",
+    name  = report, # render a Quarto report
+    path  = "report.qmd",
     quiet = F
   )
 
