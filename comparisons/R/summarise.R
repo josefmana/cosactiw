@@ -2,6 +2,7 @@
 # This script serves for summarising results of regression analyses done previously.
 #
 
+#
 # MODEL DIAGNOSTICS ----
 diagnose_models <- function(model_list) lapply(
   
@@ -18,7 +19,7 @@ diagnose_models <- function(model_list) lapply(
   )
 )
 
-
+#
 # COMPUTE MARGINAL MEANS  ----
 compute_means <- function(fits, specs) lapply(
   
@@ -40,7 +41,7 @@ compute_means <- function(fits, specs) lapply(
   
 )
 
-
+#
 # EXTRACT MEANS ----
 extract_means <- function(means, specs, digits = 2) lapply(
   
@@ -59,7 +60,7 @@ extract_means <- function(means, specs, digits = 2) lapply(
   )
 ) %>% reduce(full_join)
 
-
+#
 # COMPARE MEANS ----
 compare_means <- function(means, specs) lapply(
   
@@ -81,7 +82,7 @@ compare_means <- function(means, specs) lapply(
   
 ) %>% reduce(full_join)
 
-
+#
 # TABLE OF RESULTS ----
 stat_test <- function(fits, specs, sets) {
   
@@ -136,9 +137,12 @@ stat_test <- function(fits, specs, sets) {
   
 }
 
-
+#
 # RESULTS IN A PLOT ----
-plot_results <- function(data, stats, specs, save = T) {
+plot_results <- function(data, stats, specs, type, save = T) {
+  
+  # keep only variables of interest to plotting
+  specs <- subset(specs, analysis == type)
   
   # prepare statistic text to the figures
   text <- lapply(
@@ -147,13 +151,14 @@ plot_results <- function(data, stats, specs, save = T) {
     function(i) stats[[i]]$mPA %>%
       
       filter(Moderator == "") %>%
+      filter(y %in% specs$outcome) %>%
       mutate(
         #est = i,
         comp = sub("\n", " ", Comparison),
         ES = if_else(
           df != Inf,
-          paste0("d<sub>",sub("adjusted", "adj.", i),"</sub> = ",comp),
-          paste0("OR<sub>",sub("adjusted", "adj.", i),"</sub> = ",comp)
+          paste0("d<sub>", sub("adjusted", "adj.", i),"</sub> = ", comp),
+          paste0("OR<sub>",sub("adjusted", "adj.", i),"</sub> = ", comp)
         ),
         stat = if_else(
           df != Inf,
@@ -163,7 +168,7 @@ plot_results <- function(data, stats, specs, save = T) {
         p = if_else(
           `p value` != "< .001",
           paste0("p = ",`p value`),
-          paste0("p ",`p value`)
+          paste0("p ",  `p value`)
         ),
         label = paste(ES, p, sep = ", ")
       ) %>%
@@ -175,7 +180,12 @@ plot_results <- function(data, stats, specs, save = T) {
     rename("Outcome" = "y") %>%
     mutate(
       x = "COSACTIW",
-      y = c(25.35, 4.6, 1, -1.22, 12.2, 15.3, 1, 1, .24, 24.3, 3.7, .86, -1.9, 9.7, 12.3, .86, .86, .1)
+      y = unlist(
+        case_when(
+          type == 1 ~ list( c(4.77, 1, -1.4, 13.33, 16.3, 1, 1, .24, 4.12, .86, -1.9, 11.5, 14.12, .86, .86, .1) ),
+          type == 2 ~ list( c(-1.99, -3.85, -3.53, -2.02, -2.4, -4.4, -4, -2.5) )
+        )
+      )
     )
   
   # prepare data for plotting
@@ -183,7 +193,7 @@ plot_results <- function(data, stats, specs, save = T) {
     
     mutate( across( c("SA","cPA","Depr","Anx"), ~ if_else(.x == 1, 1, 0) ) ) %>%
     pivot_longer(
-      cols = unique(specs$outcome),
+      cols     = unique(specs$outcome),
       names_to = "Outcome",
       values_to = "Score"
     ) %>%
@@ -194,8 +204,8 @@ plot_results <- function(data, stats, specs, save = T) {
           function(i) with(
             specs, ifelse(
               test = unique( likelihood[outcome == Outcome[i]] ) == "gaussian",
-              yes = "continuous",
-              no = "binary"
+              yes  = "continuous",
+              no   = "binary"
             )
           )
         ),
@@ -215,6 +225,28 @@ plot_results <- function(data, stats, specs, save = T) {
     )
   )
   
+  # labels for continuous plots
+  labs <- unlist(
+    
+    if_else(
+      condition = type == 1,
+      true      = list( c(FAQ = "FAQ", GAI = "GAI", GDS15 = "GDS-15",Z_SA = "Cognition CS") ),
+      false     = list( c(Delayed_recall_z = "Memory (delayed recall)", TMT_B_z = "TMT-B", BNT_30_z = "BNT-30", VF_Animals_z = "Verbal Fluency (animals)") )
+    )
+    
+  )
+  
+  # levels of factor for continuous plots
+  levs <- unlist(
+    
+    if_else(
+      condition = type == 1,
+      true      = list( c("GAI", "GDS15", "FAQ", "Z_SA") ),
+      false     = list( c("Delayed_recall_z", "TMT_B_z", "BNT_30_z", "VF_Animals_z") )
+    )
+    
+  )
+  
   # plot continuous variables
   conplot <- 
     
@@ -226,11 +258,12 @@ plot_results <- function(data, stats, specs, save = T) {
     geom_violin(width = 1) +
     geom_boxplot(width = 0.2, alpha = 0.8) +
     stat_summary(fun = mean, geom = "point", shape = 20, size = 5, colour = "red3", fill = "red3") +
+    labs(y = case_when(type == 1 ~ "Score", type == 2 ~ "Z-score"), x = NULL) +
     facet_wrap(
-      facets = ~ factor( Outcome, levels = c("GAI", "GDS15", "FAQ", "MMSE", "Z_SA") ), # factor to force order
-      ncol = 1,
+      facets = ~ factor(Outcome, levels = levs), # factor to force order
+      ncol = type,
       scales = "free_y",
-      labeller = as_labeller( c(FAQ = "FAQ", GAI = "GAI", GDS15 = "GDS-15", MMSE = "MMSE", Z_SA = "Cognition CS") )
+      labeller = as_labeller(labs)
     ) +
     theme_bw() +
     theme( panel.grid = element_blank() ) +
@@ -254,6 +287,7 @@ plot_results <- function(data, stats, specs, save = T) {
     geom_smooth(method = "glm", se = F, method.args = list(family = "binomial"), colour = "red3", linewidth = 1.33) +
     scale_x_discrete( expand = expansion(add = .25 ) ) +
     scale_y_continuous(breaks = c(0,1), labels = c(0,1), name = NULL) + 
+    labs(x = NULL) +
     facet_wrap(
       facets = ~ factor( Outcome, levels = c("Anx", "Depr", "cPA", "SA") ),
       ncol = 1,
@@ -271,7 +305,10 @@ plot_results <- function(data, stats, specs, save = T) {
     )
   
   # put them next to each other
-  plt <- conplot | binplot
+  if (type == 1) plt <- conplot | binplot else plt <- conplot
+  
+  # prepare file name
+  if (type == 1) fname <- "data-and-stats.jpg" else fname <- "cognitive-tests.jpg"
   
   # save it if asked for
   if (save == T) {
@@ -279,11 +316,11 @@ plot_results <- function(data, stats, specs, save = T) {
     if ( !dir.exists("_figures") ) dir.create("_figures")
     ggsave(
       
-      plot = plt,
-      filename = here("_figures","data-and-stats.jpg"),
-      dpi = 300,
-      height = 9.9,
-      width = 9
+      plot     = plt,
+      filename = here("_figures", fname),
+      dpi      = 300,
+      height   = case_when(type == 1 ~ 9.9, type == 2 ~ 7.5),
+      width    = case_when(type == 1 ~ 9.0, type == 2 ~ 7.5)
       
     )
     

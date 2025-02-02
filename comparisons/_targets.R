@@ -36,7 +36,7 @@ list(
   tar_target( pvlt_excl, data_file("_raw", "PVLT_2012_NANOK_export_fin.xls - vyřazení.csv"), format = "file" ), # PVLT excluded
   tar_target( nanok_demo, data_file("_raw", "data_NANOK_2012-2013-2014_pro-Ondreje-Rydla_opr-MoCA.xls"), format = "file" ), # NANOK demography
   tar_target( ravlt_norms, data_file("_raw", "ravlt_analyza.csv"), format = "file" ), # RAVLT data
-  tar_target( memory_thresholds, extract_thresholds(pvlt_data, pvlt_excl, nanok_demo, ravlt_norms) ), # extract memory thresholds startified by test and education level
+  tar_target( memory_thresholds, extract_thresholds(pvlt_data, pvlt_excl, nanok_demo, ravlt_norms) ), # extract memory thresholds stratified by test and education level
   tar_target( memory_norms, extract_thresholds(pvlt_data, pvlt_excl, nanok_demo, ravlt_norms, output = "norms") ), # extract memory task norms
   
   # read & format the data ----
@@ -50,6 +50,6 @@ list(
   
   # extracting & saving the results ----
   tar_target( results, stat_test(models, specs, adjustment_sets) ), # extract results of statistical models
-  tar_target( results_plot, plot_results(data, results, specs, save = T) ) # save as a plot
-
+  tar_target( results_plot, plot_results(data, results, specs, type = 1, save = T) ), # save as a plot
+  tar_target( cognition_plot, plot_results(data, results, specs, type = 2, save = T) ) # save a plot of cognition only
 )

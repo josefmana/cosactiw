@@ -2,28 +2,29 @@
 # This script is supposed to extract normative thresholds for episodic memory for superaging.
 #
 
+#
 # SCALED SCORES FOR RAVLT ----
 ravlt_ss <- function(raw) case_when(
   
   # based on Tab. 7 from Frydrychova et al. (2018, https://psycnet.apa.org/record/2018-63633-003)
-  raw == 0 ~ 3,
-  raw == 1 ~ 4,
-  raw == 2 ~ 5,
-  raw == 3 ~ 6,
-  raw == 4 ~ 7,
-  raw == 5 ~ 8,
-  raw == 6 ~ 9,
-  raw %in% c(7,8) ~ 10,
-  raw == 9 ~ 11,
-  raw == 10 ~ 12,
-  raw == 11 ~ 13,
-  raw == 12 ~ 14,
-  raw == 13 ~ 15,
+  raw == 0          ~ 3,
+  raw == 1          ~ 4,
+  raw == 2          ~ 5,
+  raw == 3          ~ 6,
+  raw == 4          ~ 7,
+  raw == 5          ~ 8,
+  raw == 6          ~ 9,
+  raw %in% c(7,8)   ~ 10,
+  raw == 9          ~ 11,
+  raw == 10         ~ 12,
+  raw == 11         ~ 13,
+  raw == 12         ~ 14,
+  raw == 13         ~ 15,
   raw %in% c(14,15) ~ 16
   
 )
 
-
+#
 # EXTRACT SUPERAGING MEMORY THRESHOLDS ----
 extract_thresholds <- function(pvlt_data_file, pvlt_id_file, nanok_file, ravlt_file, output = "thresholds") {
   
@@ -39,12 +40,12 @@ extract_thresholds <- function(pvlt_data_file, pvlt_id_file, nanok_file, ravlt_f
     read_csv(file = ravlt_file) %>%
     filter( gender == "zena" ) %>% # keep women only
     mutate(
-      ID = id,
-      age = vek,
+      ID      = id,
+      age     = vek,
       age_cat = vek_kategorie,
-      edu = case_when(vzdelani_2 == "nizsi" ~ "lower", vzdelani_2 == "vyssi" ~ "higher"), # re-code education
-      raw = RAVLT_t7,
-      scaled = ravlt_ss(RAVLT_t7)
+      edu     = case_when(vzdelani_2 == "nizsi" ~ "lower", vzdelani_2 == "vyssi" ~ "higher"), # re-code education
+      raw     = RAVLT_t7,
+      scaled  = ravlt_ss(RAVLT_t7)
     ) %>%
     select(ID, age, age_cat, edu, raw, scaled)
     
@@ -53,7 +54,7 @@ extract_thresholds <- function(pvlt_data_file, pvlt_id_file, nanok_file, ravlt_f
     read_csv(pvlt_data_file) %>%
     filter( (!(Jméno %in% read_csv(pvlt_id_file, col_names = F)$X1) ) ) %>%
     mutate(
-      ID = as.numeric(Jméno), # for compatibility with NANOK, participant 1226p and 1247p were dropped as a result
+      ID  = as.numeric(Jméno), # for compatibility with NANOK, participant 1226p and 1247p were dropped as a result
       age = Věk,
       raw = T9
     ) %>%
@@ -104,13 +105,13 @@ extract_thresholds <- function(pvlt_data_file, pvlt_id_file, nanok_file, ravlt_f
       as.data.frame() %>%
       rownames_to_column("edu") %>%
       mutate(
-        df = N-1,
-        low_CI = M + ( S / sqrt(N) ) * qt(.025, df),
-        high_CI = M - ( S / sqrt(N) ) * qt(.025, df),
+        df          = N - 1,
+        low_CI      = M + ( S / sqrt(N) ) * qt(.025, df),
+        high_CI     = M - ( S / sqrt(N) ) * qt(.025, df),
         thresh_mean = ceiling(M),
-        thresh_low = ceiling(low_CI),
+        thresh_low  = ceiling(low_CI),
         thresh_high = ceiling(high_CI),
-        task = task
+        task        = task
       )
       
   ) %>%
@@ -121,13 +122,13 @@ extract_thresholds <- function(pvlt_data_file, pvlt_id_file, nanok_file, ravlt_f
   # prepare normative tables for RAVLT and PVLT
   norms <- array(
     
-    data = NA, # to be added via loops
-    dim = c( task = 2, stat = 3, educ = 2, age = length( unique(ravlt$age_cat) ) ),
+    data     = NA, # to be added via loops
+    dim      = c( task = 2, stat = 3, educ = 2, age = length( unique(ravlt$age_cat) ) ),
     dimnames = list(
       task = c("ravlt", "pvlt"),
       stat = c("M", "S", "N"),
       educ = c("lower", "higher"),
-      age = unique(ravlt$age_cat)
+      age  = unique(ravlt$age_cat)
     )
     
   )
